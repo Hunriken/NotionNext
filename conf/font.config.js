@@ -41,7 +41,7 @@ module.exports = {
   ],
   // 衬线字体 例如'"LXGW WenKai"'
   FONT_SERIF: [
-    '"ChillDuanHeiSongRegular"',
+    'ChillDuanHeiSongRegular',
     'Bitter',
     '"Noto Serif SC"',
     'SimSun',
