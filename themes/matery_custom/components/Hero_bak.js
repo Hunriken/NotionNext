@@ -77,28 +77,15 @@ const Hero = props => {
           </span>
         </div>
       </div>
-  
-      {/* <LazyImage
+
+      <LazyImage
         priority={true}
         id='header-cover'
         src={siteInfo?.pageCover}
         className={`header-cover object-center w-full h-screen object-cover ${siteConfig('MATERY_HOME_NAV_BACKGROUND_IMG_FIXED', null, CONFIG) ? 'fixed' : ''}`}
       />
-        */}
-      {/* 视频背景层 */}
-      <video
-        className='absolute top-0 left-0 w-full h-full object-cover z-10'
-        src='/videos/hero.mp4'
-        autoPlay
-        loop
-        muted
-        playsInline
-      />
-  
-      {/* 可选：保留原来的渐变遮罩，让文字更清晰 */}
-      <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-b from-black/40 to-black/80 z-10'></div>
     </header>
   )
-  
+}
 
 export default Hero
