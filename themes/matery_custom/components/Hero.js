@@ -57,11 +57,11 @@ const Hero = props => {
       className=' w-full h-screen relative bg-black'>
       <div className='text-white absolute flex flex-col h-full items-center justify-center w-full '>
         {/* 站点标题 */}
-        <div className='text-4xl md:text-5xl shadow-text'>
+        <div className='text-4xl md:text-5xl z-20 shadow-text'>
           {siteInfo?.title || siteConfig('TITLE')}
         </div>
         {/* 站点欢迎语 */}
-        <div className='mt-2 h-12 items-center text-center shadow-text text-white text-lg'>
+        <div className='mt-2 h-12 items-center text-center z-20 shadow-text text-white text-lg'>
           <span id='typed' />
         </div>
         {/* 滚动按钮 */}
@@ -70,9 +70,6 @@ const Hero = props => {
           window.scrollTo({ top: wrapperTop, behavior: 'smooth' })
            }}
         className='relative mt-12 cursor-pointer w-40 text-center pt-4 pb-3 text-md text-white rounded-3xl z-40 border bg-white/10 backdrop-blur-md hover:bg-white hover:text-black duration-300'>
-        {/* 呼吸光圈 */}
-        <span className="absolute inset-0 rounded-3xl animate-ping bg-white/20"></span>
-
         {/* 内容层 */}
         <span className="relative z-10 flex items-center justify-center gap-2">
     <i className='fas fa-angle-double-down' />
@@ -94,7 +91,7 @@ const Hero = props => {
         */}
       {/* 视频背景层 */}
       <video
-        className='absolute top-0 left-0 w-full h-full object-cover z-10'
+        className='absolute top-0 left-0 w-full h-full object-cover z-0'
         src='/videos/hero.mp4'
         autoPlay
         loop
