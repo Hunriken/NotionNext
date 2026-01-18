@@ -14,7 +14,7 @@ const Style = () => {
         background-size: cover;
         background-repeat: no-repeat;
         background-position: center;
-
+        background-attachment: fixed;
       }
       .dark body {
         /* background-color: black; */
@@ -22,6 +22,7 @@ const Style = () => {
         background-size: cover;
         background-repeat: no-repeat;
         background-position: center;
+        background-attachment: fixed;
       }
 
       /* 设置了从上到下的渐变黑色 */
