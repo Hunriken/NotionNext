@@ -9,10 +9,19 @@ const Style = () => {
     <style jsx global>{`
       /* 底色 */
       body {
-        background-color: black;
+        /* background-color: black; */
+        background-image: url('/bg.jpg');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center;
+
       }
       .dark body {
-        background-color: black;
+        /* background-color: black; */
+        background-image: url('/bg.jpg');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center;
       }
 
       /* 设置了从上到下的渐变黑色 */
