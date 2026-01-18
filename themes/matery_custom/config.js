@@ -33,7 +33,7 @@ const CONFIG = {
   MATERY_WIDGET_ANALYTICS: false, // 显示统计卡
   MATERY_WIDGET_TO_TOP: true,
   MATERY_WIDGET_TO_COMMENT: false, // 跳到评论区
-  WIDGET_DARK_MODE: true, // 夜间模式
+  WIDGET_DARK_MODE: false, // 夜间模式
   MATERY_WIDGET_TOC: true // 移动端悬浮目录
 }
 export default CONFIG
