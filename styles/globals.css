@@ -291,7 +291,7 @@ img {
 .lazy-image-placeholder{
   background: 
       linear-gradient(90deg,#0001 33%,#0005 50%,#0001 66%)
-      #f2f2f2;
+      #0e1116;
   background-size:300% 100%;
   animation: l1 1s infinite linear;
   }
