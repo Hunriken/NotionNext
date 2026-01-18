@@ -24,6 +24,9 @@ let windowTop = 0
 
 const Header = props => {
   console.log(props.customNav) // 控制台输出id，用于找出需要的按钮
+  const menus = props?.customNav || [] //接上，不行就删
+  const aboutButton = menus.find(item => item?.id === 'about') //接上，不行就删
+
   const { tags, currentTag, categories, currentCategory } = props
   const { locale } = useGlobal()
   const searchDrawer = useRef()
