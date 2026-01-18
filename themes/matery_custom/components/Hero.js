@@ -96,7 +96,7 @@ const Hero = props => {
       />
   
       {/* 可选：保留原来的渐变遮罩，让文字更清晰 */}
-      <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-b from-black/40 to-black/80 z-10'></div>
+      <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-b from-black/10 to-black/30 z-10'></div>
     </header>
   )
 }
