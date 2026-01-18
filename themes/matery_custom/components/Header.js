@@ -21,8 +21,9 @@ let windowTop = 0
  * @param {*} param0
  * @returns
  */
-console.log(props.customNav) // 控制台输出id，用于找出需要的按钮
+
 const Header = props => {
+  console.log(props.customNav) // 控制台输出id，用于找出需要的按钮
   const { tags, currentTag, categories, currentCategory } = props
   const { locale } = useGlobal()
   const searchDrawer = useRef()
