@@ -60,14 +60,14 @@ const BlogPostCard = ({ index, post, showSummary, siteInfo }) => {
         {/* 文字描述 */}
         <main>
           {/* 描述 */}
-          <div className='px-4 flex flex-col w-full  text-gray-700  dark:text-gray-300'>
+          <div className='px-2 flex flex-col w-full  text-gray-300 dark:text-gray-300'>
             {(!showPreview || showSummary) && post.summary && (
-              <p className='replace my-2 text-sm font-light leading-7 line-clamp-3'>
+              <p className='replace my-1 text-sm font-light leading-5 line-clamp-2'>
                 {post.summary}
               </p>
             )}
 
-            <div className='text-gray-800 justify-between flex my-2  dark:text-gray-300'>
+            {/*<div className='text-gray-400 justify-between flex my-2  dark:text-gray-300'>  //底部信息栏，日期
               <div>
                 <SmartLink
                   href={`/archive#${formatDateFmt(post?.publishDate, 'yyyy-MM')}`}
@@ -81,14 +81,14 @@ const BlogPostCard = ({ index, post, showSummary, siteInfo }) => {
                   className='hover:underline cursor-pointer text-sm'
                 />
               </div>
-              <SmartLink
+              <SmartLink  //底部信息栏，分类
                 href={`/category/${post.category}`}
                 passHref
-                className='cursor-pointer font-light text-sm hover:underline hover:text-indigo-700 dark:hover:text-indigo-400 transform'>
+                className='cursor-pointer font-light text-sm hover:underline hover:text-white dark:hover:text-indigo-400 transform'>
                 <i className='mr-1 far fa-folder' />
                 {post.category}
               </SmartLink>
-            </div>
+            </div>*/}
           </div>
 
           {post?.tagItems && post?.tagItems.length > 0 && (
