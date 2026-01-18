@@ -31,7 +31,7 @@ const BlogPostCard = ({ index, post, showSummary, siteInfo }) => {
       data-aos-delay={delay}
       data-aos-once='true'
       data-aos-anchor-placement='top-bottom'
-      className='w-full mb-4 overflow-hidden shadow-md border dark:border-black rounded-xl bg-gray-900 dark:bg-hexo-black-gray'>
+      className='w-full mb-4 overflow-hidden shadow-md rounded-xl bg-gray-900 dark:bg-hexo-black-gray'>
       {/* 固定高度 ，空白用图片拉升填充 */}
       <header className='group flex flex-col h-80 justify-between'>
         {/* 头部图片 填充卡片 */}
@@ -91,10 +91,9 @@ const BlogPostCard = ({ index, post, showSummary, siteInfo }) => {
             </div>*/}
           </div>
 
-          {post?.tagItems && post?.tagItems.length > 0 && (
+         {/* {post?.tagItems && post?.tagItems.length > 0 && (
             <>
-              <hr />
-              <div className='text-gray-400 justify-between flex px-5 py-3'>
+              <div className='text-gray-400 justify-between flex px-3 py-3'>
                 <div className='md:flex-nowrap flex-wrap md:justify-start inline-block'>
                   <div>
                     {' '}
@@ -105,7 +104,7 @@ const BlogPostCard = ({ index, post, showSummary, siteInfo }) => {
                 </div>
               </div>
             </>
-          )}
+          )}*/}
         </main>
       </header>
     </div>
