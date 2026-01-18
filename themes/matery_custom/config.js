@@ -2,10 +2,10 @@ const CONFIG = {
   MATERY_HOME_BANNER_ENABLE: true,
   // 3.14.1以后的版本中，欢迎语在blog.config.js中配置，用英文逗号','隔开多个。
   MATERY_HOME_BANNER_GREETINGS: [
+    'Welcome!',
     '我是平面设计师',
     '我是动效设计师',
-    '我是AI设计师',
-    'Welcome!'
+    '我是AI设计师'
   ], // 首页大图标语文字
 
   MATERY_HOME_NAV_BUTTONS: true, // 首页是否显示分类大图标按钮
@@ -33,7 +33,7 @@ const CONFIG = {
   MATERY_WIDGET_ANALYTICS: false, // 显示统计卡
   MATERY_WIDGET_TO_TOP: true,
   MATERY_WIDGET_TO_COMMENT: false, // 跳到评论区
-  //WIDGET_DARK_MODE: false, // 夜间模式
+  WIDGET_DARK_MODE: false, // 夜间模式
   MATERY_WIDGET_TOC: true // 移动端悬浮目录
 }
 export default CONFIG
