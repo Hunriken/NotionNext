@@ -40,20 +40,7 @@ const Header = props => {
           scrollS <= windowTop ||
           scrollS < 5 ||
           (header && scrollS <= header.clientHeight * 2) // 非首页无大图时影藏顶部 滚动条置顶时隐藏// 非首页无大图时影藏顶部 滚动条置顶时隐藏
-        // 是否将导航栏透明
-        const navTransparent = header && scrollS < 300 // 透明导航条的条件
-
-        if (navTransparent) {
-          nav && nav.classList.replace('bg-indigo-700', 'bg-none')
-          nav && nav.classList.replace('text-black', 'text-white')
-          nav && nav.classList.replace('shadow-xl', 'shadow-none')
-          nav && nav.classList.replace('dark:bg-hexo-black-gray', 'transparent')
-        } else {
-          nav && nav.classList.replace('bg-none', 'bg-indigo-700')
-          nav && nav.classList.replace('text-white', 'text-black')
-          nav && nav.classList.replace('shadow-none', 'shadow-xl')
-          nav && nav.classList.replace('transparent', 'dark:bg-hexo-black-gray')
-        }
+        // 保持导航栏始终为glassmorphism效果，不改变背景
 
         if (!showNav) {
           nav && nav.classList.replace('top-0', '-top-20')
