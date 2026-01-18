@@ -31,7 +31,7 @@ const BlogPostCard = ({ index, post, showSummary, siteInfo }) => {
       data-aos-delay={delay}
       data-aos-once='true'
       data-aos-anchor-placement='top-bottom'
-      className='w-full mb-4 overflow-hidden shadow-md border dark:border-black rounded-xl bg-white dark:bg-hexo-black-gray'>
+      className='w-full mb-4 overflow-hidden shadow-md border dark:border-black rounded-xl bg-gray-900 dark:bg-hexo-black-gray'>
       {/* 固定高度 ，空白用图片拉升填充 */}
       <header className='group flex flex-col h-80 justify-between'>
         {/* 头部图片 填充卡片 */}
@@ -43,12 +43,12 @@ const BlogPostCard = ({ index, post, showSummary, siteInfo }) => {
                 alt={post.title}
                 className='h-full w-full group-hover:scale-110 group-hover:brightness-50 rounded-t-md transform object-cover duration-500'
               />
-              <h2 className='absolute bottom-0 left-0 text-white p-6 text-2xl replace break-words w-full shadow-text z-30'>
+              <h3 className='absolute bottom-0 left-0 text-white p-2 text-xl replace break-words w-full shadow-text z-30'>
                 {siteConfig('POST_TITLE_ICON') && (
                   <NotionIcon icon={post.pageIcon} />
                 )}
                 {post.title}
-              </h2>
+              </h3>
               {/* 放在图片的阴影遮罩，便于突出文字 */}
               <div className='h-1/2 w-full absolute left-0 bottom-0 z-20 opacity-75 transition-all duration-200'>
                 <div className='h-full w-full absolute bg-gradient-to-b from-transparent to-black'></div>

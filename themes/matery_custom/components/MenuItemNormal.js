@@ -15,7 +15,7 @@ export const MenuItemNormal = props => {
       className={
         'py-2 px-5 duration-300 text-base justify-between hover:bg-gray-700 hover:text-white hover:shadow-lg cursor-pointer font-light flex flex-nowrap items-center ' +
         (selected
-          ? 'bg-indigo-500 text-white '
+          ? 'bg-black text-white '
           : ' text-black dark:text-white ')
       }>
       <div className='my-auto items-center justify-between flex '>
