@@ -9,7 +9,7 @@ const CONFIG = {
   ], // 首页大图标语文字
 
   MATERY_HOME_NAV_BUTTONS: true, // 首页是否显示分类大图标按钮
-  MATERY_HOME_NAV_BACKGROUND_IMG_FIXED: true, // 首页背景图滚动时是否固定，true 则滚动时图片不懂； false则随鼠标滚动
+  MATERY_HOME_NAV_BACKGROUND_IMG_FIXED: false, // 首页背景图滚动时是否固定，true 则滚动时图片不懂； false则随鼠标滚动
 
   // 是否显示开始阅读按钮
   MATERY_SHOW_START_READING: true,
