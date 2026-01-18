@@ -7,9 +7,9 @@
 const Style = () => {
   return (
     <style jsx global>{`
-      // 底色
+      /* 底色 */
       body {
-        background-color: #0e1116;
+        background-color: black;
       }
       .dark body {
         background-color: black;
@@ -33,7 +33,7 @@ const Style = () => {
         );
       }
 
-      // 自定义滚动条
+      /*  自定义滚动条 */
       ::-webkit-scrollbar {
         width: 5px;
         height: 5px;
