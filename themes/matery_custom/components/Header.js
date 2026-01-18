@@ -138,7 +138,7 @@ const Header = props => {
       <div
         id='sticky-nav'
         className={
-          'flex justify-center top-0 shadow-none fixed bg-none dark:bg-hexo-black-gray text-white w-full z-30 transform transition-all duration-200 glassmorphism'
+          'flex justify-center top-0 shadow-none fixed bg-none dark:bg-none text-white w-full z-30 transform transition-all duration-200 glassmorphism'
         }>
         <div className='w-full max-w-full flex justify-between items-center px-4 py-2'>
           {/* 左侧功能 */}
