@@ -66,16 +66,23 @@ const Hero = props => {
         </div>
         {/* 滚动按钮 */}
         <div
-          onClick={() => {
-            window.scrollTo({ top: wrapperTop, behavior: 'smooth' })
-          }}
-          className='glassmorphism mt-12 border cursor-pointer w-40 text-center pt-4 pb-3 text-md text-white hover:bg-black duration-300 rounded-3xl z-40'>
-          <i className='animate-bounce fas fa-angle-double-down' />{' '}
-          <span>
-            {siteConfig('MATERY_SHOW_START_READING', null, CONFIG) &&
-              locale.COMMON.START_READING}
-          </span>
-        </div>
+        onClick={() => {
+          window.scrollTo({ top: wrapperTop, behavior: 'smooth' })
+           }}
+        className='relative mt-12 cursor-pointer w-40 text-center pt-4 pb-3 text-md text-white rounded-3xl z-40 border bg-white/10 backdrop-blur-md hover:bg-white hover:text-black duration-300'>
+        {/* 呼吸光圈 */}
+        <span className="absolute inset-0 rounded-3xl animate-ping bg-white/20"></span>
+
+        {/* 内容层 */}
+        <span className="relative z-10 flex items-center justify-center gap-2">
+    <i className='fas fa-angle-double-down' />
+    <span>
+      {siteConfig('MATERY_SHOW_START_READING', null, CONFIG) &&
+        locale.COMMON.START_READING}
+    </span>
+  </span>
+</div>
+
       </div>
   
       {/* <LazyImage
