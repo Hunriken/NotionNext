@@ -11,10 +11,11 @@ const Logo = props => {
   return (
     <SmartLink href='/' passHref legacyBehavior>
       <div className='flex flex-col justify-center items-center cursor-pointer space-y-3'>
-        <div className=' text-lg p-1.5 rounded dark:border-white hover:scale-110 transform duration-200'>
-          {' '}
-          {siteInfo?.title || siteConfig('TITLE')}
-        </div>
+        <img
+          src='/images/logo.png'
+          alt='浩平作品集'
+          className='h-8 w-auto hover:scale-110 transform duration-200'
+        />
       </div>
     </SmartLink>
   )
