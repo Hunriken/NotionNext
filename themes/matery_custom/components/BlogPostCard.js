@@ -33,79 +33,33 @@ const BlogPostCard = ({ index, post, showSummary, siteInfo }) => {
       data-aos-anchor-placement='top-bottom'
       className='w-full mb-4 overflow-hidden shadow-md rounded-xl bg-gray-900 dark:bg-hexo-black-gray'>
       {/* 固定高度 ，空白用图片拉升填充 */}
-      <header className='group flex flex-col h-80 justify-between'>
-        {/* 头部图片 填充卡片 */}
-        {showPageCover && (
-          <SmartLink href={post?.href} passHref legacyBehavior>
-            <div className='flex flex-grow w-full relative duration-200 = rounded-t-md cursor-pointer transform overflow-hidden'>
-              <LazyImage
-                src={post?.pageCoverThumbnail}
-                alt={post.title}
-                className='h-full w-full group-hover:scale-110 group-hover:brightness-50 rounded-t-md transform object-cover duration-500'
-              />
-              <h3 className='absolute bottom-0 left-0 text-white p-2 text-xl replace break-words w-full shadow-text z-30'>
-                {siteConfig('POST_TITLE_ICON') && (
-                  <NotionIcon icon={post.pageIcon} />
-                )}
-                {post.title}
-              </h3>
-              {/* 放在图片的阴影遮罩，便于突出文字 */}
-              <div className='h-1/2 w-full absolute left-0 bottom-0 z-20 opacity-75 transition-all duration-200'>
-                <div className='h-full w-full absolute bg-gradient-to-b from-transparent to-black'></div>
-              </div>
-            </div>
-          </SmartLink>
-        )}
+      <header className='relative h-80 w-full overflow-hidden group'>
+        {/* 背景图填满整个卡片 */}
+        <LazyImage
+          src={post?.pageCoverThumbnail}
+          alt={post.title}
+          className='absolute inset-0 w-full h-full object-cover transform duration-500 group-hover:scale-110 group-hover:brightness-130'
+        />
 
-        {/* 文字描述 */}
-        <main>
-          {/* 描述 */}
-          <div className='px-2 flex flex-col w-full  text-gray-300 dark:text-gray-300'>
-            {(!showPreview || showSummary) && post.summary && (
-              <p className='replace my-1 text-sm font-light leading-5 line-clamp-2'>
-                {post.summary}
-              </p>
+        {/* 底部玻璃拟态信息层 */}
+        <div
+          className='absolute bottom-0 left-0 w-full p-4 z-20
+                bg-black/30 backdrop-blur-md
+                text-white space-y-2'>
+          <h3 className='text-xl font-semibold break-words'>
+            {siteConfig('POST_TITLE_ICON') && (
+              <NotionIcon icon={post.pageIcon} />
             )}
-
-            {/*<div className='text-gray-400 justify-between flex my-2  dark:text-gray-300'>  //底部信息栏，日期
-              <div>
-                <SmartLink
-                  href={`/archive#${formatDateFmt(post?.publishDate, 'yyyy-MM')}`}
-                  passHref
-                  className='font-light hover:underline cursor-pointer text-sm leading-4 mr-3'>
-                  <i className='far fa-clock mr-1' />
-                  {post.date?.start_date || post.lastEditedDay}
-                </SmartLink>
-                <TwikooCommentCount
-                  post={post}
-                  className='hover:underline cursor-pointer text-sm'
-                />
-              </div>
-              <SmartLink  //底部信息栏，分类
-                href={`/category/${post.category}`}
-                passHref
-                className='cursor-pointer font-light text-sm hover:underline hover:text-white dark:hover:text-indigo-400 transform'>
-                <i className='mr-1 far fa-folder' />
-                {post.category}
-              </SmartLink>
-            </div>*/}
-          </div>
-
-         {/* {post?.tagItems && post?.tagItems.length > 0 && (
-            <>
-              <div className='text-gray-400 justify-between flex px-3 py-3'>
-                <div className='md:flex-nowrap flex-wrap md:justify-start inline-block'>
-                  <div>
-                    {' '}
-                    {post.tagItems.map(tag => (
-                      <TagItemMini key={tag.name} tag={tag} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </>
-          )}*/}
-        </main>
+            {post.title}
+          </h3>
+          {/* 白色分割线 */}
+          <div className='border-t border-white/40 w-full my-1'></div>
+          {(!showPreview || showSummary) && post.summary && (
+            <p className='text-sm font-light leading-5 line-clamp-2'>
+              {post.summary}
+            </p>
+          )}
+        </div>
       </header>
     </div>
   )
