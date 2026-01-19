@@ -53,7 +53,7 @@ export const MenuListTop = props => {
   }
 
   return (
-    <nav id='nav' className='leading-8 flex justify-center  font-light w-full'>
+    <nav id='nav' className='leading-8 flex justify-center  font-light w-full gap-10'>  {/* gap-4_6_8_10调整menu的宽松度*/}
       {links?.map((link, index) => (
         <MenuItemDrop key={index} link={link} />
       ))}
