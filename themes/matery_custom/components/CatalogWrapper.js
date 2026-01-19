@@ -5,7 +5,11 @@ import Catalog from './Catalog'
  * @param {*} param0
  * @returns
  */
-export default function CatalogWrapper({ post }) {
+export default function CatalogWrapper( ) 
+{return null
+}
+
+{/*
   if (post?.toc?.length > 0) {
     return <div id='toc-wrapper' style={{ zIndex: '-1' }} className='absolute top-0 w-full h-full xl:block hidden lg:max-w-3xl 2xl:max-w-4xl' >
             <div data-aos-delay="200"
@@ -24,4 +28,4 @@ export default function CatalogWrapper({ post }) {
   } else {
     return <></>
   }
-}
+*/}
