@@ -23,9 +23,9 @@ let windowTop = 0
  */
 
 const Header = props => {
-  console.log(props.customNav) // 控制台输出id，用于找出需要的按钮
-  const menus = props?.customNav || [] //接上，不行就删
-  const aboutButton = menus.find(item => item?.id === 'about') //接上，不行就删
+  const menus = props?.customMenu || [] //提取resume
+  const resumeButton = menus.find(m => m?.slug === 'resume') //提取resume
+  const filteredMenus = menus.filter(m => m.slug !== 'resume') //简历移出menu区
 
   const { tags, currentTag, categories, currentCategory } = props
   const { locale } = useGlobal()
@@ -33,7 +33,6 @@ const Header = props => {
   const { isDarkMode } = useGlobal()
   const throttleMs = 200
   const showSearchButton = siteConfig('MATERY_MENU_SEARCH', false, CONFIG)
-
   const router = useRouter()
   const scrollTrigger = useCallback(
     throttle(() => {
@@ -142,33 +141,53 @@ const Header = props => {
       {/* 导航栏 */}
       <div
         id='sticky-nav'
-        className={
-          'flex justify-center top-0 shadow-none fixed bg-none dark:bg-none text-white w-full z-30 transform transition-all duration-200 glassmorphism'
-        }>
-        <div className='w-full max-w-full flex justify-between items-center px-4 py-2'>
-          {/* 左侧功能 */}
-          <div className='justify-start items-center block lg:hidden '>
-            <div
-              onClick={toggleMenuOpen}
-              className='w-8 justify-center items-center h-8 cursor-pointer flex lg:hidden'>
-              {isOpen ? (
-                <i className='fas fa-times' />
-              ) : (
-                <i className='fas fa-bars' />
-              )}
+        className='flex justify-center top-0 shadow-none fixed bg-black/10 dark:bg-black/10 text-white w-full z-30 transform transition-all duration-200 glassmorphism'>
+        <div className='w-full max-w-full flex items-center px-4 py-2'>
+          {/* 左侧：小屏汉堡按钮 / 大屏 Logo */}
+          <div className='flex items-center'>
+            {/* 小屏汉堡按钮 */}
+            <div className='block lg:hidden'>
+              <div
+                onClick={toggleMenuOpen}
+                className='w-8 h-8 flex items-center justify-center cursor-pointer'>
+                {isOpen ? (
+                  <i className='fas fa-times' />
+                ) : (
+                  <i className='fas fa-bars' />
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className='flex'>
-            <Logo {...props} />
-          </div>
-
-          {/* 右侧功能 */}
-          <div className='mr-1 justify-end items-center flex'>
+            {/* 大屏 Logo */}
             <div className='hidden lg:flex'>
-              {' '}
-              <MenuListTop {...props} />
+              <Logo {...props} />
             </div>
+          </div>
+
+          {/* 中间：菜单（仅大屏显示） */}
+          <div className='flex flex-1 justify-center'>
+            <div className='hidden lg:flex'>
+              <MenuListTop {...props} customMenu={filteredMenus} />
+            </div>
+          </div>
+
+          {/* 右侧：简历按钮 + 搜索按钮 */}
+          <div className='flex items-center'>
+            {resumeButton && (
+              <SmartLink
+                href={`/${resumeButton.slug}`}
+                className='ml-4 text-white font-light tracking-wide transition duration-300'
+                onMouseEnter={e => {
+                  e.currentTarget.style.textShadow =
+                    '0 0 6px white, 0 0 12px white'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.textShadow = 'none'
+                }}>
+                {resumeButton.title}
+              </SmartLink>
+            )}
+
             {showSearchButton && <SearchButton />}
           </div>
         </div>
