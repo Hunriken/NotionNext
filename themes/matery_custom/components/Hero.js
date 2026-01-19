@@ -66,22 +66,21 @@ const Hero = props => {
         </div>
         {/* 滚动按钮 */}
         <div
-        onClick={() => {
-          window.scrollTo({ top: wrapperTop, behavior: 'smooth' })
-           }}
-        className='relative mt-12 cursor-pointer w-40 text-center pt-4 pb-3 text-md text-white rounded-3xl z-40 border bg-white/10 backdrop-blur-md hover:bg-white hover:text-black duration-300'>
-        {/* 内容层 */}
-        <span className="relative z-10 flex items-center justify-center gap-2">
-    <i className='fas fa-angle-double-down' />
-    <span>
-      {siteConfig('MATERY_SHOW_START_READING', null, CONFIG) &&
-        locale.COMMON.START_READING}
-    </span>
-  </span>
-</div>
-
+          onClick={() => {
+            window.scrollTo({ top: wrapperTop, behavior: 'smooth' })
+          }}
+          className='relative mt-12 cursor-pointer w-40 text-center pt-4 pb-3 text-md text-white rounded-3xl z-40 border bg-white/10 backdrop-blur-md hover:bg-white hover:text-black duration-300'>
+          {/* 内容层 */}
+          <span className='relative z-10 flex items-center justify-center gap-2'>
+            <i className='fas fa-angle-double-down' />
+            <span>
+              {siteConfig('MATERY_SHOW_START_READING', null, CONFIG) &&
+                locale.COMMON.START_READING}
+            </span>
+          </span>
+        </div>
       </div>
-  
+
       {/* <LazyImage
         priority={true}
         id='header-cover'
@@ -98,7 +97,11 @@ const Hero = props => {
         muted
         playsInline
       />
-  
+      <img
+        src='/images/noise.jpg'
+        className='absolute inset-0 w-full h-full object-cover z-10 opacity-100 mix-blend-screen pointer-events-none'
+      />
+
       {/* 可选：保留原来的渐变遮罩，让文字更清晰 */}
       <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-b from-black/10 to-black/30 z-10'></div>
     </header>
