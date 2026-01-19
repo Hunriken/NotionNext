@@ -20,15 +20,27 @@ export const MenuItemDrop = ({ link }) => {
         <SmartLink
           href={link?.href}
           target={link?.target}
-          className=' menu-link pl-2 pr-4  no-underline tracking-widest pb-1'>
+          className='menu-link pl-2 pr-4 no-underline tracking-widest pb-1 text-white transition duration-300'
+          onMouseEnter={e => {
+            e.currentTarget.style.textShadow = '0 0 6px white, 0 0 12px white'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.textShadow = 'none'
+          }}>
           {link?.icon && <i className={link?.icon} />} {link?.name}
-          {hasSubMenu && <i className='px-2 fa fa-angle-down'></i>}
         </SmartLink>
       )}
 
       {hasSubMenu && (
         <>
-          <div className='cursor-pointer  menu-link pl-2 pr-4  no-underline tracking-widest pb-1 relative'>
+          <div
+            className='cursor-pointer menu-link pl-2 pr-4 no-underline tracking-widest pb-1 relative text-white transition duration-300'
+            onMouseEnter={e => {
+              e.currentTarget.style.textShadow = '0 0 6px white, 0 0 12px white'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.textShadow = 'none'
+            }}>
             {link?.icon && <i className={link?.icon} />} {link?.name}
             <i
               className={`px-2 fa fa-angle-down duration-300  ${show ? 'rotate-180' : 'rotate-0'}`}></i>
@@ -43,16 +55,23 @@ export const MenuItemDrop = ({ link }) => {
       {/* 子菜单 */}
       {hasSubMenu && (
         <ul
-          style={{ backdropFilter: 'blur(3px)' }}
-          className={`${show ? 'visible opacity-100 top-12 pointer-events-auto' : 'invisible opacity-0 top-20 pointer-events-none'} drop-shadow-md overflow-hidden rounded-md bg-white transition-all duration-300 z-20 absolute block  `}>
+        className={`${show ? 'visible opacity-100 top-12 pointer-events-auto' : 'invisible opacity-0 top-20 pointer-events-none'} bg-black/20 dark:bg-black/20 overflow-hidden rounded-md transition-all duration-300 z-20 absolute block`}
+      >
+      
           {link.subMenus.map((sLink, index) => {
             return (
               <li
                 key={index}
-                className='cursor-pointer hover:bg-indigo-500 text-gray-900 hover:text-white tracking-widest transition-all duration-200 dark:border-gray-800  py-1 pr-6 pl-3'>
+                className='cursor-pointer tracking-widest transition-all duration-200 py-1 pr-6 pl-3 text-white'
+                onMouseEnter={e => {
+                  e.currentTarget.style.textShadow =
+                    '0 0 6px white, 0 0 12px white'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.textShadow = 'none'
+                }}>
                 <SmartLink href={sLink.href} target={link?.target}>
                   <span className='text-sm text-nowrap font-extralight'>
-                    {link?.icon && <i className={sLink?.icon}> &nbsp; </i>}
                     {sLink.title}
                   </span>
                 </SmartLink>
