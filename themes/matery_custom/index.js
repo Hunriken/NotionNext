@@ -97,13 +97,13 @@ const LayoutBase = props => {
           {/* 嵌入区域 */}
           <div
             id='container-slot'
-            className={`w-full ${fullWidth ? '' : 'max-w-6xl'} ${post && ' lg:max-w-3xl 2xl:max-w-4xl '} mt-6 px-3 mx-auto lg:flex lg:space-x-4 justify-center relative z-10`}>
+            className={`w-full ${fullWidth ? '' : 'max-w-7xl'} ${post && ' lg:max-w-3xl 2xl:max-w-4xl '} mt-6 px-3 mx-auto lg:flex lg:space-x-4 justify-center relative z-10`}>
             {containerSlot}
           </div>
 
           <div
             id='container-inner'
-            className={`w-full min-h-fit ${fullWidth ? '' : 'max-w-6xl'} mx-auto lg:flex lg:space-x-4 justify-center relative z-10`}>
+            className={`w-full min-h-fit ${fullWidth ? '' : 'max-w-7xl'} mx-auto lg:flex lg:space-x-4 justify-center relative z-10`}>
             {children}
           </div>
         </main>
