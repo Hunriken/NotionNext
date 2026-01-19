@@ -13,13 +13,25 @@ export default function PostHero({ post, siteInfo }) {
   return (
     <div
       id='header'
-      className='flex h-96 justify-center align-middle items-center w-full relative bg-black'>
-      <div
-        data-wow-delay='.1s'
-        className='wow fadeInUp z-10 leading-snug font-bold xs:text-4xl sm:text-4xl md:text-5xl md:leading-snug text-4xl shadow-text-md flex justify-center text-center text-white'>
-        {siteConfig('POST_TITLE_ICON') && <NotionIcon icon={post?.pageIcon} />}
-        {title}
+      className='flex h-[40rem] justify-center align-middle items-center w-full relative bg-black'>
+      {/* 文本层 */}
+      <div className='z-20 flex flex-col items-center text-center px-4'>
+        {/* 标题 */}
+        <div className='leading-snug font-bold text-4xl md:text-5xl text-white drop-shadow-lg'>
+          {siteConfig('POST_TITLE_ICON') && (
+            <NotionIcon icon={post?.pageIcon} />
+          )}
+          {title}
+        </div>
+
+        {/* 自动拉取 Notion summary 的描述文本 */}
+        {post.summary && (
+          <p className='mt-4 text-lg text-gray-200 max-w-3xl leading-relaxed'>
+            {post.summary}
+          </p>
+        )}
       </div>
+
       <LazyImage
         alt={title}
         src={headerImage}
