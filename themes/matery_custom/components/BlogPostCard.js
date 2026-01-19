@@ -1,28 +1,53 @@
 import LazyImage from '@/components/LazyImage'
 import NotionIcon from '@/components/NotionIcon'
-import TwikooCommentCount from '@/components/TwikooCommentCount'
 import { siteConfig } from '@/lib/config'
-import { formatDateFmt } from '@/lib/utils/formatDate'
-import SmartLink from '@/components/SmartLink'
 import CONFIG from '../config'
-import TagItemMini from './TagItemMini'
+import SmartLink from '@/components/SmartLink'
+import { useRef } from 'react'
 
-/**
- * 博客列表：文章卡牌
- * @param {*} param0
- * @returns
- */
 const BlogPostCard = ({ index, post, showSummary, siteInfo }) => {
   const showPreview =
     siteConfig('MATERY_POST_LIST_PREVIEW', null, CONFIG) && post.blockMap
-  // matery 主题默认强制显示图片
+
   if (post && !post.pageCoverThumbnail) {
     post.pageCoverThumbnail = siteInfo?.pageCover
   }
-  const showPageCover =
-    siteConfig('MATERY_POST_LIST_COVER', null, CONFIG) &&
-    post?.pageCoverThumbnail
+
   const delay = (index % 3) * 300
+
+  // ⭐ 小丑牌 3D 视差
+  const cardRef = useRef(null)
+
+  const handleMouseMove = (e) => {
+    const card = cardRef.current
+    const rect = card.getBoundingClientRect()
+
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    const centerX = rect.width / 2
+    const centerY = rect.height / 2
+
+    const rotateX = ((y - centerY) / centerY) * 2
+    const rotateY = ((centerX - x) / centerX) * 2
+
+    card.style.transform = `
+      perspective(900px)
+      rotateX(${rotateX}deg)
+      rotateY(${rotateY}deg)
+      scale(1.03)
+    `
+  }
+
+  const handleMouseLeave = () => {
+    const card = cardRef.current
+    card.style.transform = `
+      perspective(900px)
+      rotateX(0deg)
+      rotateY(0deg)
+      scale(1)
+    `
+  }
 
   return (
     <div
@@ -31,36 +56,43 @@ const BlogPostCard = ({ index, post, showSummary, siteInfo }) => {
       data-aos-delay={delay}
       data-aos-once='true'
       data-aos-anchor-placement='top-bottom'
-      className='w-full mb-4 overflow-hidden shadow-md rounded-xl bg-gray-900 dark:bg-hexo-black-gray'>
-      {/* 固定高度 ，空白用图片拉升填充 */}
-      <header className='relative h-80 w-full overflow-hidden group'>
-        {/* 背景图填满整个卡片 */}
-        <LazyImage
-          src={post?.pageCoverThumbnail}
-          alt={post.title}
-          className='absolute inset-0 w-full h-full object-cover transform duration-500 group-hover:scale-110 group-hover:brightness-130'
-        />
-
-        {/* 底部玻璃拟态信息层 */}
+      className='w-full mb-4'
+    >
+      {/* ⭐ SmartLink 包裹整个卡片，恢复点击跳转 */}
+      <SmartLink href={post?.href} className='block'>
+        {/* ⭐ tilt + 缓动层 */}
         <div
-          className='absolute bottom-0 left-0 w-full p-4 z-20
-                bg-black/30 backdrop-blur-md
-                text-white space-y-2'>
-          <h3 className='text-xl font-semibold break-words'>
-            {siteConfig('POST_TITLE_ICON') && (
-              <NotionIcon icon={post.pageIcon} />
-            )}
-            {post.title}
-          </h3>
-          {/* 白色分割线 */}
-          <div className='border-t border-white/40 w-full my-1'></div>
-          {(!showPreview || showSummary) && post.summary && (
-            <p className='text-sm font-light leading-5 line-clamp-2'>
-              {post.summary}
-            </p>
-          )}
+          ref={cardRef}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          className='rounded-xl overflow-hidden will-change-transform transition-transform duration-100 ease-out'
+        >
+          <header className='relative h-[32rem] w-full overflow-hidden group'>
+            <LazyImage
+              src={post?.pageCoverThumbnail}
+              alt={post.title}
+              className='absolute inset-0 w-full h-full object-cover transform duration-500 group-hover:brightness-130'
+            />
+
+            <div className='absolute bottom-0 left-0 w-full p-4 z-20 bg-black/30 backdrop-blur-md text-white space-y-2'>
+              <h3 className='text-xl font-semibold break-words'>
+                {siteConfig('POST_TITLE_ICON') && (
+                  <NotionIcon icon={post.pageIcon} />
+                )}
+                {post.title}
+              </h3>
+
+              <div className='border-t border-white/40 w-full my-1'></div>
+
+              {(!showPreview || showSummary) && post.summary && (
+                <p className='text-sm font-light leading-5 line-clamp-2'>
+                  {post.summary}
+                </p>
+              )}
+            </div>
+          </header>
         </div>
-      </header>
+      </SmartLink>
     </div>
   )
 }
