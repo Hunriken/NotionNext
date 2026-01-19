@@ -13,9 +13,9 @@ export default function PostHero({ post, siteInfo }) {
   return (
     <div
       id='header'
-      className='flex h-[40rem] justify-center align-middle items-center w-full relative bg-black'>
+      className='flex h-[32rem] justify-center align-middle items-start w-full relative bg-black'> 
       {/* 文本层 */}
-      <div className='z-20 flex flex-col items-center text-center px-4'>
+      <div className='z-20 flex flex-col items-center text-center px-4 pt-[12vh]'>
         {/* 标题 */}
         <div className='leading-snug font-bold text-4xl md:text-5xl text-white drop-shadow-lg'>
           {siteConfig('POST_TITLE_ICON') && (
@@ -35,7 +35,7 @@ export default function PostHero({ post, siteInfo }) {
       <LazyImage
         alt={title}
         src={headerImage}
-        className='pointer-events-none select-none w-full h-full object-cover opacity-30 absolute'
+        className='pointer-events-none select-none w-full h-full object-cover opacity-40 absolute'
         placeholder='blur'
         blurDataURL={siteConfig('IMG_LAZY_LOAD_PLACEHOLDER')}
       />
