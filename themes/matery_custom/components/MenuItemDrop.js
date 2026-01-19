@@ -22,10 +22,10 @@ export const MenuItemDrop = ({ link }) => {
           target={link?.target}
           className='menu-link pl-2 pr-4 no-underline tracking-widest pb-1 text-white transition duration-300'
           onMouseEnter={e => {
-            e.currentTarget.style.textShadow = '0 0 6px white, 0 0 12px white'
+            e.currentTarget.style.filter = 'drop-shadow(0 0 6px white) drop-shadow(0 0 12px white)'
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.textShadow = 'none'
+            e.currentTarget.style.filter = 'none'
           }}>
           {link?.icon && <i className={link?.icon} />} {link?.name}
         </SmartLink>
@@ -36,10 +36,10 @@ export const MenuItemDrop = ({ link }) => {
           <div
             className='cursor-pointer menu-link pl-2 pr-4 no-underline tracking-widest pb-1 relative text-white transition duration-300'
             onMouseEnter={e => {
-              e.currentTarget.style.textShadow = '0 0 6px white, 0 0 12px white'
+              e.currentTarget.style.filter = 'drop-shadow(0 0 6px white) drop-shadow(0 0 12px white)'
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.textShadow = 'none'
+              e.currentTarget.style.filter = 'none'
             }}>
             {link?.icon && <i className={link?.icon} />} {link?.name}
             <i
@@ -62,13 +62,13 @@ export const MenuItemDrop = ({ link }) => {
             return (
               <li
                 key={index}
-                className='cursor-pointer tracking-widest transition-all duration-200 py-1 pr-6 pl-3 text-white'
+                className='cursor-pointer tracking-widest transition-all duration-300 py-1 pr-6 pl-3 text-white'
                 onMouseEnter={e => {
-                  e.currentTarget.style.textShadow =
-                    '0 0 6px white, 0 0 12px white'
+                  e.currentTarget.style.filter =
+                    'drop-shadow(0 0 6px white) drop-shadow(0 0 12px white)'
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.textShadow = 'none'
+                  e.currentTarget.style.filter = 'none'
                 }}>
                 <SmartLink href={sLink.href} target={link?.target}>
                   <span className='text-sm text-nowrap font-extralight'>

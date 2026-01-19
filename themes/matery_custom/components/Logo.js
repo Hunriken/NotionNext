@@ -14,7 +14,7 @@ const Logo = props => {
         <img
           src='/images/logo.png'
           alt='浩平作品集'
-          className='h-8 w-auto hover:scale-110 transform duration-200'
+          className='h-8 w-auto transform duration-300 hover: hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]'
         />
       </div>
     </SmartLink>

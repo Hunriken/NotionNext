@@ -141,7 +141,7 @@ const Header = props => {
       {/* 导航栏 */}
       <div
         id='sticky-nav'
-        className='flex justify-center top-0 shadow-none fixed bg-black/10 dark:bg-black/10 text-white w-full z-30 transform transition-all duration-200 glassmorphism'>
+        className='flex justify-center top-0 shadow-none fixed bg-black/10 dark:bg-black/10 text-white w-full z-30 transform transition-all duration-300 glassmorphism'>
         <div className='w-full max-w-full flex items-center px-4 py-2'>
           {/* 左侧：小屏汉堡按钮 / 大屏 Logo */}
           <div className='flex items-center'>
@@ -178,11 +178,11 @@ const Header = props => {
                 href={`/${resumeButton.slug}`}
                 className='ml-4 text-white font-light tracking-wide transition duration-300'
                 onMouseEnter={e => {
-                  e.currentTarget.style.textShadow =
-                    '0 0 6px white, 0 0 12px white'
+                  e.currentTarget.style.filter =
+                    'drop-shadow(0 0 6px white) drop-shadow(0 0 12px white)'
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.textShadow = 'none'
+                  e.currentTarget.style.filter = 'none'
                 }}>
                 {resumeButton.title}
               </SmartLink>
