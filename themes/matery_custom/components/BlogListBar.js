@@ -2,7 +2,9 @@ import SmartLink from '@/components/SmartLink'
 import { useGlobal } from '@/lib/global'
 import TagItemMiddle from './TagItemMiddle'
 
-export default function BlogListBar(props) {
+export default function BlogListBar(props) 
+{
+  return <></>   // 直接在这里终止渲染，不让tag和category导航栏显示。
   const { category, categoryOptions, tag, tagOptions } = props
   const { locale } = useGlobal()
 

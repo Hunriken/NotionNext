@@ -229,19 +229,18 @@ const LayoutSlug = props => {
   useEffect(() => {
     // 404
     if (!post) {
-      setTimeout(
-        () => {
-          if (isBrowser) {
-            const article = document.querySelector('#article-wrapper #notion-article')
-            if (!article) {
-              router.push('/404').then(() => {
-                console.warn('找不到页面', router.asPath)
-              })
-            }
+      setTimeout(() => {
+        if (isBrowser) {
+          const article = document.querySelector(
+            '#article-wrapper #notion-article'
+          )
+          if (!article) {
+            router.push('/404').then(() => {
+              console.warn('找不到页面', router.asPath)
+            })
           }
-        },
-        waiting404
-      )
+        }
+      }, waiting404)
     }
   }, [post])
   return (
@@ -351,7 +350,9 @@ const Layout404 = props => {
  * @returns
  */
 const LayoutCategoryIndex = props => {
-  const { categoryOptions } = props
+  {
+    {
+      /*  const { categoryOptions } = props  //关闭category的导航区域
 
   return (
     <div id='inner-wrapper' className='w-full'>
@@ -373,7 +374,10 @@ const LayoutCategoryIndex = props => {
         </div>
       </div>
     </div>
-  )
+        )*/
+    }
+  }
+  return <></>
 }
 
 /**
@@ -382,7 +386,8 @@ const LayoutCategoryIndex = props => {
  * @returns
  */
 const LayoutTagIndex = props => {
-  const { tagOptions } = props
+  { /*
+  const { tagOptions } = props  //关闭tag的导航区域
   const { locale } = useGlobal()
   return (
     <div id='inner-wrapper' className='w-full drop-shadow-xl'>
@@ -404,7 +409,9 @@ const LayoutTagIndex = props => {
         </div>
       </div>
     </div>
-  )
+        ) 
+        */ }
+  return <></>
 }
 
 export {
