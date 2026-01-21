@@ -4,61 +4,50 @@ import { siteConfig } from '@/lib/config'
 const Footer = ({ title }) => {
   const d = new Date()
   const currentYear = d.getFullYear()
-  const copyrightDate = (function () {
-    if (
-      Number.isInteger(siteConfig('SINCE')) &&
-      siteConfig('SINCE') < currentYear
-    ) {
-      return siteConfig('SINCE') + '-' + currentYear
-    }
-    return currentYear
-  })()
+  const copyright =
+    Number.isInteger(siteConfig('SINCE')) && siteConfig('SINCE') < currentYear
+      ? `${siteConfig('SINCE')}-${currentYear}`
+      : currentYear
 
   return (
-    <footer className='relative z-10 dark:bg-black flex-shrink-0 bg-black text-white justify-center text-center m-auto w-full leading-6  dark:text-gray-100 text-sm p-6'>
-      {/* <DarkModeButton/> */}
-      <i className='fas fa-copyright' /> {`${copyrightDate}`}{' '}
-      <span>
-        <span className='w-5 mx-1 text-center'>
-          <i className=' animate-pulse fas fa-heart' />
-        </span>{' '}
+    <footer
+      className='
+      relative z-10 w-full flex flex-col items-center text-center
+      text-sm text-white dark:text-gray-100
+      py-5 mt-5
+      backdrop-blur-xl bg-white/10 dark:bg-black/20
+      border-t border-white/20 dark:border-white/10
+    '>
+    
+
+      {/* 第二行：微信 icon | 邮箱 */}
+      <div className='flex items-center justify-center gap-6 mt-0 text-gray-200'>
+        <div className='relative group cursor-pointer'>
+          {/* 微信 icon */}
+          <i className='fab fa-weixin text-3xl'></i>
+
+          {/* 悬浮二维码（带黑底） */}
+          <div
+            className='absolute left-1/2 -translate-x-1/2 -top-[320px] z-50 w-[300px] h-[300px] bg-black/70  backdrop-blur-xl rounded-xl shadow-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none '
+          >
+            <img
+              src='/images/wechat.png'
+              alt='wechat qr'
+              className='h-full w-auto object-contain'
+            />
+          </div>
+        </div>
+
+        {/* 分隔符 | */}
+        <span className='text-2xl text-gray-400 select-none'>|</span>
+
+        {/* 邮箱（点击打开邮件） */}
         <a
-          href={siteConfig('LINK')}
-          className='underline font-bold  dark:text-gray-300 '>
-          {siteConfig('AUTHOR')}
+          href='mailto:HJ@gmail.com'
+          className='text-lg hover:text-white transition'>
+          hunriken@gmail.com
         </a>
-        .<br />
-        {siteConfig('BEI_AN') && (
-          <>
-            <i className='fas fa-shield-alt' />{' '}
-            <a href={siteConfig('BEI_AN_LINK')} className='mr-2'>
-              {siteConfig('BEI_AN')}
-            </a>
-            <br />
-          </>
-        )}
-        <BeiAnGongAn />
-        <span className='hidden busuanzi_container_site_pv'>
-          <i className='fas fa-eye' />
-          <span className='px-1 busuanzi_value_site_pv'> </span>{' '}
-        </span>
-        <span className='pl-2 hidden busuanzi_container_site_uv'>
-          <i className='fas fa-users' />{' '}
-          <span className='px-1 busuanzi_value_site_uv'> </span>{' '}
-        </span>
-        <br />
-        <h1>{title}</h1>
-        <span className='text-xs '>
-          Powered by{' '}
-          <a
-            href='https://github.com/tangly1024/NotionNext'
-            className='underline dark:text-gray-300'>
-            NotionNext {siteConfig('VERSION')}
-          </a>
-          .
-        </span>
-      </span>
-      <br />
+      </div>
     </footer>
   )
 }
