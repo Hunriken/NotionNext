@@ -7,9 +7,9 @@ export default function handler(req, res) {
     return res.status(400).json({ error: 'Missing file parameter' })
   }
 
-  const accessKey = process.env.R2_ACCESS_KEY_ID || '1fa08da0533611175f480490a731a941'
-  const secretKey = process.env.R2_SECRET_ACCESS_KEY || '99c2dd9fe962bbd7d2b654c303c6e3e04b70b9eebd410df02307658b021a8ad6'
-  const endpoint = process.env.R2_PUBLIC_ENDPOINT || 'https://assets.haoping.me'// https://assets.haoping.me
+  const accessKey = process.env.R2_ACCESS_KEY_ID='1fa08da0533611175f480490a731a941'
+  const secretKey = process.env.R2_SECRET_ACCESS_KEY='99c2dd9fe962bbd7d2b654c303c6e3e04b70b9eebd410df02307658b021a8ad6'
+  const endpoint = process.env.R2_PUBLIC_ENDPOINT='https://assets.haoping.me'// https://assets.haoping.me
 
   // 5 分钟有效期
   const expires = Math.floor(Date.now() / 1000) + 60 * 5
