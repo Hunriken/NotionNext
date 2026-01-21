@@ -17,12 +17,13 @@ export default function PostHero({ post, siteInfo }) {
   return (
     <div
       id='header'
-      className='relative w-full bg-black flex justify-center items-start py-24'
-    >
+      className='relative w-full bg-black flex justify-center items-start py-24 overflow-hidden'>
       {/* 文本层 */}
       <div className='z-20 flex flex-col items-center text-center px-4'>
         <div className='leading-snug font-bold text-4xl md:text-5xl text-white drop-shadow-lg'>
-          {siteConfig('POST_TITLE_ICON') && <NotionIcon icon={post?.pageIcon} />}
+          {siteConfig('POST_TITLE_ICON') && (
+            <NotionIcon icon={post?.pageIcon} />
+          )}
           {title}
         </div>
 
@@ -38,12 +39,11 @@ export default function PostHero({ post, siteInfo }) {
         <LazyImage
           alt={title}
           src={headerImage}
-          className='pointer-events-none select-none absolute inset-0 w-full h-full object-cover opacity-40'
+          className='pointer-events-none select-none absolute inset-0 w-full h-full object-cover opacity-50 blur-xl'
           placeholder='blur'
           blurDataURL={siteConfig('IMG_LAZY_LOAD_PLACEHOLDER')}
         />
       )}
     </div>
-
   )
 }
