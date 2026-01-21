@@ -45,7 +45,7 @@ const Footer = ({ title }) => {
         <a
           href='mailto:HJ@gmail.com'
           className='text-lg hover:text-white transition'>
-          hunriken@gmail.com
+          haoping.me@gmail.com
         </a>
       </div>
     </footer>
