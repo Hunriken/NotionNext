@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Player</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    video {
+      width: 100%;
+      height: auto;
+      max-width: 900px;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" controls controlsList="nodownload" oncontextmenu="return false;"></video>
+
+  <script>
+    async function loadVideo() {
+      const params = new URLSearchParams(window.location.search)
+      const file = params.get('file')
+      if (!file) return
+
+      const res = await fetch(`/api/video-url?file=${file}`)
+      const data = await res.json()
+
+      document.getElementById('video').src = data.url
+    }
+
+    loadVideo()
+  </script>
+</body>
+</html>
