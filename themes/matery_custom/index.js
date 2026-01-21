@@ -283,13 +283,25 @@ const LayoutSlug = props => {
                   {/*post?.type === 'Post' && <ArticleCopyright {...props} />*/}
                 </article>
 
-                <hr className='border-dashed' />
+                <div className='my-12 flex flex-col items-center w-full'>
+                  <div className='w-full border-t border-gray-300'></div>
+
+                  <div className='mt-3 w-full'>
+                    <div className='text-center text-gray-400 tracking-widest text-sm'>
+                      End
+                    </div>
+                    <div className='text-right text-gray-400 tracking-widest text-sm'>
+                      Thanks for reading. ♥ from HJ
+                    </div>
+                  </div>
+                </div>
 
                 {/* 评论互动 */}
-                <div className='overflow-x-auto dark:bg-hexo-black-gray px-3'>
+                {/*} <div className='overflow-x-auto dark:bg-hexo-black-gray px-3'>
                   <WWAds orientation='horizontal' />
                   <Comment frontMatter={post} />
                 </div>
+              */}
               </div>
             </div>
           )}
@@ -386,7 +398,8 @@ const LayoutCategoryIndex = props => {
  * @returns
  */
 const LayoutTagIndex = props => {
-  { /*
+  {
+    /*
   const { tagOptions } = props  //关闭tag的导航区域
   const { locale } = useGlobal()
   return (
@@ -410,7 +423,8 @@ const LayoutTagIndex = props => {
       </div>
     </div>
         ) 
-        */ }
+        */
+  }
   return <></>
 }
 
