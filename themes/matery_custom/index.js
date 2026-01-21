@@ -308,10 +308,10 @@ const LayoutSlug = props => {
         </div>
 
         {/* 底部文章推荐 */}
-        {post?.type === 'Post' && <ArticleAdjacent {...props} />}
+        {/*post?.type === 'Post' && <ArticleAdjacent {...props} />*/}
 
         {/* 底部公告 */}
-        <Announcement {...props} />
+        {/*<Announcement {...props} />*/}
 
         {/* 右侧文章目录 */}
         <CatalogWrapper post={post} />
