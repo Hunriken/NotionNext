@@ -59,7 +59,7 @@ const BlogPostCard = ({ index, post, showSummary, siteInfo }) => {
       className='w-full mb-4'
     >
       {/* ⭐ SmartLink 包裹整个卡片，恢复点击跳转 */}
-      <SmartLink href={post?.href} className='block'>
+      <SmartLink href={post?.href} className='block' target="_blank" rel="noopener noreferrer">
         {/* ⭐ tilt + 缓动层 */}
         <div
           ref={cardRef}
