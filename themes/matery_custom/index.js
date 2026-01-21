@@ -69,7 +69,7 @@ const LayoutBase = props => {
     siteConfig('MATERY_HOME_BANNER_ENABLE', null, CONFIG) &&
     router.route === '/' ? (
       <Hero {...props} />
-    ) : post && !fullWidth ? (
+    ) : post ? (
       <PostHero {...props} />
     ) : null
 
@@ -250,7 +250,7 @@ const LayoutSlug = props => {
         className={`w-full ${fullWidth ? '' : 'lg:max-w-3xl 2xl:max-w-4xl'}`}>
         {/* 文章主体 */}
         <div
-          className={`${fullWidth ? '' : '-mt-32'} transition-all duration-300 rounded-md mx-3 lg:border lg:rounded-xl lg:py-4 bg-white dark:bg-hexo-black-gray  dark:border-black`}>
+          className={`-mt-32 transition-all duration-300 rounded-md mx-3 lg:border lg:rounded-xl lg:py-4 bg-white dark:bg-hexo-black-gray  dark:border-black`}>
           {lock && <ArticleLock validPassword={validPassword} />}
 
           {!lock && post && (
@@ -280,7 +280,7 @@ const LayoutSlug = props => {
                   <ShareBar post={post} />
 
                   {/* 版权说明 */}
-                  {post?.type === 'Post' && <ArticleCopyright {...props} />}
+                  {/*post?.type === 'Post' && <ArticleCopyright {...props} />*/}
                 </article>
 
                 <hr className='border-dashed' />
