@@ -106,15 +106,16 @@ const nextConfig = {
       transform: '@heroicons/react/24/solid/{{member}}'
     }
   },
-  // 多语言， 在export时禁用
+
   i18n: undefined,
-  {/*process.env.EXPORT
-    ? undefined
-    : {
-        defaultLocale: BLOG.LANG,
-        // 支持的所有多语言,按需填写即可
-        locales: locales
-      },*/}
+  //现已禁用多语言，以下修改前代码
+  //i18n: process.env.EXPORT
+  //  ? undefined
+  //  : {
+  //      defaultLocale: BLOG.LANG,
+  //      // 支持的所有多语言,按需填写即可
+  //      locales: locales
+  //    },
   images: {
     // 图片压缩和格式优化
     formats: ['image/avif', 'image/webp'],
