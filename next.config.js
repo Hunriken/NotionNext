@@ -107,13 +107,14 @@ const nextConfig = {
     }
   },
   // 多语言， 在export时禁用
-  i18n: process.env.EXPORT
+  i18n: undefined,
+  {/*process.env.EXPORT
     ? undefined
     : {
         defaultLocale: BLOG.LANG,
         // 支持的所有多语言,按需填写即可
         locales: locales
-      },
+      },*/}
   images: {
     // 图片压缩和格式优化
     formats: ['image/avif', 'image/webp'],
