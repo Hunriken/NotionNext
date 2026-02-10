@@ -43,7 +43,7 @@ const Footer = ({ title }) => {
 
         {/* 邮箱（点击打开邮件） */}
         <a
-          href='mailto:HJ@gmail.com'
+          href='mailto:haoping.me@gmail.com'
           className='text-lg hover:text-white transition'>
           haoping.me@gmail.com
         </a>
