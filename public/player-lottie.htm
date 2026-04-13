@@ -12,7 +12,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: transparent !important;
+      background: transparent;
     }
 
     #container {
@@ -89,9 +89,16 @@
     -------------------------- */
     const bg = params.get('bg')
     if (bg) {
-      document.documentElement.style.background = bg
-      document.body.style.background = bg
-      document.getElementById('container').style.background = bg
+    const container = document.getElementById('container')
+    container.style.background = bg
+
+    // 关键：让 lottie 区域也继承背景色，避免透明漏出 iframe 白色
+    document.getElementById('lottie').style.background = bg
+
+    // 保险：覆盖 html/body 背景
+    document.body.style.background = bg
+    document.documentElement.style.background = bg
+
     }
 
     const R2 = 'https://assets.haoping.me'
