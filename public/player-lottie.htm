@@ -15,7 +15,6 @@
       background: transparent !important;
     }
 
-    /* 播放器容器 */
     #container {
       position: relative;
       width: 100%;
@@ -24,14 +23,12 @@
       background: transparent;
     }
 
-    /* Lottie 动画区域 */
     #lottie {
       width: 100%;
       height: 100%;
       background: transparent;
     }
 
-    /* 控制条悬浮 */
     #controls {
       position: absolute;
       bottom: 12px;
@@ -54,7 +51,6 @@
       transition: opacity 0.4s ease;
     }
 
-    /* 隐藏状态 */
     #controls.hidden {
       opacity: 0;
       pointer-events: none;
@@ -101,12 +97,19 @@
       path: file
     })
 
-    // 让 SVG 完整显示，不裁切
+    // 让 SVG 完整显示 + 强制透明背景
     anim.addEventListener('DOMLoaded', () => {
       const svg = document.querySelector('#lottie svg')
       if (svg) {
         svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+        svg.style.background = 'transparent'
       }
+
+      // Lottie 有时会在 <g> 上加背景，也一起清掉
+      const groups = document.querySelectorAll('#lottie svg g')
+      groups.forEach(g => {
+        g.style.background = 'transparent'
+      })
     })
 
     // 暂停 / 播放
@@ -138,9 +141,7 @@
       toggle.innerText = '播放'
     }
 
-    /* -------------------------
-       自动隐藏控制条逻辑
-    -------------------------- */
+    /* 自动隐藏控制条 */
     const controls = document.getElementById('controls')
     let hideTimer = null
 
@@ -149,13 +150,10 @@
       if (hideTimer) clearTimeout(hideTimer)
       hideTimer = setTimeout(() => {
         controls.classList.add('hidden')
-      }, 2000) // 鼠标 2 秒不动后隐藏
+      }, 2000)
     }
 
-    // 鼠标移动时显示
     document.addEventListener('mousemove', showControls)
-
-    // 初始启动隐藏计时器
     showControls()
   </script>
 </body>
