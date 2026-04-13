@@ -3,71 +3,73 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Player Embed — Lottie Demo Wrapper</title>
+  <title>Player Embed — Lottie Demo Wrapper (简洁版)</title>
 
   <style>
-    html,body{height:100%;margin:0;background:transparent;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
-    #container{position:relative;width:100%;height:100vh;overflow:hidden;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-    iframe{width:100%;height:100%;border:0;background:transparent;display:block;}
+    :root { --controls-height: 48px; }
+    html,body { height:100%; margin:0; background:transparent; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    #container { position:relative; width:100%; height:100vh; overflow:hidden; background:transparent; cursor:pointer; }
+    iframe { width:100%; height:100%; border:0; display:block; background:transparent; }
 
-    /* 控制条（仅保留 播放/暂停 + 进度条） */
-    #controls{
+    /* 控制条：仅播放/暂停 + 进度条 */
+    #controls {
       position:absolute;
       left:12px;
       right:12px;
       bottom:12px;
-      height:42px;
+      height:var(--controls-height);
       display:flex;
       align-items:center;
       gap:10px;
       padding:8px 12px;
       background:rgba(0,0,0,0.35);
-      backdrop-filter:blur(10px);
+      backdrop-filter: blur(10px);
       border-radius:8px;
       z-index:9999;
-      opacity:1;
-      transition:opacity .35s ease;
-      pointer-events:auto;
-    }
-    #controls.hidden{opacity:0;pointer-events:none;}
-    #toggle{
-      padding:6px 12px;
-      border:none;
-      border-radius:4px;
-      background:rgba(255,255,255,0.95);
-      cursor:pointer;
-      font-weight:600;
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .25s ease;
     }
 
-    /* 进度条样式参考你给的播放器 */
-    #progress{
+    /* 当鼠标悬停在容器上（包括 iframe 区域）时显示控制条 */
+    #container:hover #controls { opacity:1; pointer-events:auto; }
+
+    /* 进度条样式（参考你给的样式） */
+    #progress {
       -webkit-appearance:none;
       appearance:none;
       width:100%;
       height:6px;
-      background:rgba(255,255,255,0.12);
+      background:linear-gradient(90deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.95) var(--pct,0%), rgba(255,255,255,0.12) var(--pct,0%), rgba(255,255,255,0.12) 100%);
       border-radius:999px;
       outline:none;
       cursor:pointer;
     }
-    /* thumb */
-    #progress::-webkit-slider-thumb{
+    #progress::-webkit-slider-thumb {
       -webkit-appearance:none;
       appearance:none;
-      width:14px;
-      height:14px;
-      border-radius:50%;
-      background:#fff;
-      box-shadow:0 2px 6px rgba(0,0,0,0.3);
-      border:2px solid rgba(0,0,0,0.08);
+      width:14px; height:14px; border-radius:50%;
+      background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); border:2px solid rgba(0,0,0,0.08);
       margin-top:-4px;
     }
-    #progress::-moz-range-thumb{
-      width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid rgba(0,0,0,0.08);
+    #progress::-moz-range-thumb {
+      width:14px; height:14px; border-radius:50%; background:#fff; border:2px solid rgba(0,0,0,0.08);
     }
-    /* filled track using background gradient */
-    #progress[data-value]{
-      background:linear-gradient(90deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.95) var(--pct,0%), rgba(255,255,255,0.12) var(--pct,0%), rgba(255,255,255,0.12) 100%);
+
+    #toggle {
+      padding:6px 12px;
+      border:none;
+      border-radius:6px;
+      background:rgba(255,255,255,0.95);
+      cursor:pointer;
+      font-weight:600;
+      white-space:nowrap;
+    }
+
+    /* 小屏幕适配 */
+    @media (max-width:480px) {
+      #controls { left:8px; right:8px; bottom:8px; padding:6px; gap:8px; }
+      #toggle { padding:6px 8px; font-size:14px; }
     }
   </style>
 </head>
@@ -75,28 +77,29 @@
   <div id="container">
     <iframe id="playerFrame" sandbox="allow-scripts allow-same-origin"></iframe>
 
-    <div id="controls">
+    <div id="controls" aria-hidden="false">
       <button id="toggle">暂停</button>
-      <input id="progress" type="range" min="0" max="100" value="0" data-value />
+      <input id="progress" type="range" min="0" max="100" value="0" />
     </div>
   </div>
 
 <script>
 /*
-  Minimal wrapper:
-  - auto-load demo from ?demo=path (relative to assets.haoping.me) or absolute URL
-  - fetch demo HTML, inject <base> and bridge script, load into iframe via Blob URL
-  - expose only play/pause and progress (seekPercent)
-  - update progress from iframe events
-  - auto-hide controls on inactivity
+  简洁版 Wrapper Player
+  - 通过 ?demo=path 注入桥脚并加载 demo HTML（相对于 assets.haoping.me）
+  - 支持 &bg=black 或 &bg=1d1b59 等背景色（默认透明）
+  - 仅保留 播放/暂停 + 进度条
+  - 自动在不可见时 pause（IntersectionObserver）
 */
 
 (async function(){
   const ASSET_HOST = 'https://assets.haoping.me';
   const params = new URLSearchParams(location.search);
   const demoParam = params.get('demo') || params.get('file') || '';
+  const bgParam = params.get('bg') || null;
+
   const iframe = document.getElementById('playerFrame');
-  const controls = document.getElementById('controls');
+  const container = document.getElementById('container');
   const toggle = document.getElementById('toggle');
   const progress = document.getElementById('progress');
 
@@ -104,7 +107,22 @@
   let playing = true;
   let lastPct = 0;
 
-  // Bridge script injected into demo HTML
+  // 背景色支持短/长 hex 或关键字
+  if (bgParam) {
+    let bg = decodeURIComponent(bgParam);
+    if (/^[0-9a-fA-F]{3}$/.test(bg)) bg = '#' + bg;
+    if (/^[0-9a-fA-F]{6}$/.test(bg)) bg = '#' + bg;
+    document.documentElement.style.background = bg;
+    document.body.style.background = bg;
+    container.style.background = bg;
+  } else {
+    // 默认透明
+    document.documentElement.style.background = 'transparent';
+    document.body.style.background = 'transparent';
+    container.style.background = 'transparent';
+  }
+
+  // 桥脚：注入到 demo HTML 中，负责查找 lottie 实例并响应父消息
   const BRIDGE_SCRIPT = `
     <script>
     (function(){
@@ -176,6 +194,7 @@
     <\/script>
   `;
 
+  // 在 HTML 中注入 <base> 与桥脚，确保相对资源能正确解析
   function injectBaseAndBridge(htmlText, demoUrl) {
     const baseHref = demoUrl.substring(0, demoUrl.lastIndexOf('/') + 1);
     if (/<head[^>]*>/i.test(htmlText)) {
@@ -213,7 +232,7 @@
       iframe.src = blobUrl;
       iframe.onload = ()=> { setTimeout(()=> URL.revokeObjectURL(blobUrl), 2000); };
     } catch (err) {
-      // fallback: direct load (may be uncontrollable)
+      // 回退：直接加载（不可控）
       let demoUrl = demoPathOrUrl;
       if (!/^https?:\/\//i.test(demoUrl)) {
         demoUrl = ASSET_HOST.replace(/\/$/, '') + '/' + demoUrl.replace(/^\//, '');
@@ -227,7 +246,7 @@
     try { iframe.contentWindow.postMessage(msg, '*'); } catch(e){}
   }
 
-  // Listen events from iframe
+  // 接收 iframe 事件（frame/progress/bridgeReady）
   window.addEventListener('message', (e) => {
     const msg = e.data;
     if (!msg || msg.type !== '__lottie_event') return;
@@ -235,21 +254,17 @@
     const data = msg.data || {};
     if (ev === 'bridgeReady') {
       bridgeReady = true;
-      // request initial progress
+      // 请求初始进度
       postCmd('getProgress');
     } else if (ev === 'frame' || ev === 'progress') {
       const pct = data.progress || 0;
       lastPct = pct;
       progress.value = Math.round(pct * 100);
-      // update visual filled track
       progress.style.setProperty('--pct', (pct*100) + '%');
-      progress.setAttribute('data-value', '');
-    } else if (ev === 'bridgeFailed') {
-      // bridge failed — nothing to do in minimal UI
     }
   }, false);
 
-  // UI bindings
+  // UI 事件
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!bridgeReady) return;
@@ -266,8 +281,8 @@
     toggle.innerText = '播放';
   });
 
-  // Click on container toggles play/pause (but ignore clicks on controls)
-  document.getElementById('container').addEventListener('click', (e) => {
+  // 点击容器切换播放（忽略点击控制条）
+  container.addEventListener('click', (e) => {
     if (e.target.closest('#controls')) return;
     if (!bridgeReady) return;
     if (playing) { postCmd('pause'); toggle.innerText = '播放'; }
@@ -275,18 +290,31 @@
     playing = !playing;
   });
 
-  // Auto-hide controls on inactivity
+  // 自动隐藏控制条（CSS :hover 已覆盖大部分场景）
   let hideTimer = null;
-  function showControls() {
-    controls.classList.remove('hidden');
+  function scheduleHide() {
     if (hideTimer) clearTimeout(hideTimer);
-    hideTimer = setTimeout(()=> controls.classList.add('hidden'), 1000);
+    hideTimer = setTimeout(()=> {
+      // only hide if not hovered
+      if (!container.matches(':hover')) {
+        document.getElementById('controls').classList.add('hidden');
+      }
+    }, 1200);
   }
-  document.addEventListener('mousemove', showControls);
-  showControls();
+  // show on pointer enter, schedule hide on leave
+  container.addEventListener('pointerenter', ()=> {
+    document.getElementById('controls').classList.remove('hidden');
+    scheduleHide();
+  });
+  container.addEventListener('pointerleave', ()=> {
+    scheduleHide();
+  });
+  // ensure controls visible initially
+  document.getElementById('controls').classList.remove('hidden');
+  scheduleHide();
 
-  // Auto-pause when not visible
-  const observer = new IntersectionObserver(entries => {
+  // 自动在不可见时暂停（适合 Notion 中大量 embed 场景）
+  const io = new IntersectionObserver(entries => {
     entries.forEach(entry => {
       if (!bridgeReady) return;
       if (entry.isIntersecting) {
@@ -299,14 +327,12 @@
         playing = false;
       }
     });
-  });
-  observer.observe(document.getElementById('container'));
+  }, { threshold: 0.05 });
+  io.observe(container);
 
-  // Auto-load demo param if present
+  // 自动加载 demo 参数（如果有）
   if (demoParam) {
     loadDemo(demoParam);
-  } else {
-    // nothing to load; keep iframe blank
   }
 
 })();
