@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Lottie Demo Player (embed + postMessage API)</title>
+
+<style>
+  html,body{height:100%;margin:0;background:transparent;}
+  #container{position:relative;width:100%;height:100%;overflow:hidden;background:transparent;display:flex;align-items:center;justify-content:center;}
+  #stage{width:100%;height:100%;position:relative;background:transparent;display:block;}
+  /* 强制 canvas/svg 填满 */
+  #stage canvas, #stage svg{width:100% !important;height:100% !important;display:block;}
+  /* 控制条 */
+  #controls{position:absolute;left:12px;right:12px;bottom:12px;height:48px;display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(0,0,0,0.36);border-radius:8px;backdrop-filter:blur(6px);z-index:20;transition:opacity .25s;}
+  #controls.hidden{opacity:0;pointer-events:none;}
+  #progress{flex:1;}
+  button,select{padding:6px 10px;border-radius:6px;border:none;background:#fff;cursor:pointer;}
+  input[type=range]{width:100%;}
+  .small{padding:6px 8px;font-size:13px;}
+</style>
+</head>
+<body>
+  <div id="container">
+    <div id="stage" aria-hidden="true"></div>
+
+    <div id="controls">
+      <button id="btnPlay" class="small">暂停</button>
+      <input id="progress" type="range" min="0" max="100" value="0" />
+      <select id="speed" class="small">
+        <option value="0.5">0.5x</option>
+        <option value="1" selected>1x</option>
+        <option value="1.5">1.5x</option>
+        <option value="2">2x</option>
+      </select>
+      <button id="btnLoop" class="small">循环: 开</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <script>
+  (function(){
+    // 参数
+    const params = new URLSearchParams(location.search);
+    let file = params.get('file') || '';
+    const showControls = params.get('controls') !== '0'; // 默认显示
+    const bg = params.get('bg') || null;
+    const ASSET_ROOT = location.origin; // 可改为你的 assets 根
+
+    // 背景色
+    if (bg) {
+      let c = decodeURIComponent(bg);
+      if (/^[0-9a-fA-F]{3}$/.test(c)) c = '#' + c;
+      if (/^[0-9a-fA-F]{6}$/.test(c)) c = '#' + c;
+      document.body.style.background = c;
+      document.getElementById('container').style.background = c;
+    }
+
+    // 补全相对路径
+    if (file && !file.startsWith('http') && !file.startsWith('/')) {
+      file = ASSET_ROOT.replace(/\/$/,'') + '/' + file.replace(/^\//,'');
+    }
+
+    const stage = document.getElementById('stage');
+    const controls = document.getElementById('controls');
+    const btnPlay = document.getElementById('btnPlay');
+    const progress = document.getElementById('progress');
+    const speedSel = document.getElementById('speed');
+    const btnLoop = document.getElementById('btnLoop');
+
+    if (!showControls) controls.classList.add('hidden');
+
+    // helper: fetch json and fix assets.u -> absolute
+    async function fetchAndFixJson(url){
+      const res = await fetch(url, {cache:'no-store'});
+      if (!res.ok) throw new Error('fetch json failed: ' + res.status);
+      const json = await res.json();
+      const base = url.substring(0, url.lastIndexOf('/')+1);
+      if (Array.isArray(json.assets)) {
+        json.assets.forEach(a=>{
+          if (a.u && a.p) {
+            if (!/^https?:\/\//i.test(a.u)) a.u = base + a.u;
+          }
+        });
+      }
+      return json;
+    }
+
+    // create container for lottie (lottie will insert canvas/svg inside)
+    stage.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.style.width = '100%';
+    wrap.style.height = '100%';
+    wrap.style.position = 'relative';
+    stage.appendChild(wrap);
+
+    // ensure canvas/svg pixel size for crispness
+    function fixChildCanvasSize(){
+      const cvs = wrap.querySelector('canvas');
+      if (!cvs) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.max(1, Math.floor(wrap.clientWidth * dpr));
+      const h = Math.max(1, Math.floor(wrap.clientHeight * dpr));
+      if (cvs.width !== w || cvs.height !== h) {
+        cvs.width = w; cvs.height = h;
+      }
+      cvs.style.width = '100%'; cvs.style.height = '100%';
+    }
+    const ro = new ResizeObserver(()=> fixChildCanvasSize());
+    ro.observe(wrap);
+
+    // player state & API
+    let anim = null;
+    let playing = true;
+    let loop = true;
+
+    // load animationData (fix assets) then init lottie
+    async function init(){
+      if (!file) {
+        wrap.innerHTML = '<div style="color:#fff;padding:12px">未指定 file 参数</div>';
+        return;
+      }
+      try {
+        const json = await fetchAndFixJson(file);
+        // load animation using animationData (avoids relative path issues)
+        anim = lottie.loadAnimation({
+          container: wrap,
+          renderer: 'svg', // svg usually fine for demo; change to 'canvas' if you need canvas
+          loop: loop,
+          autoplay: true,
+          animationData: json,
+          rendererSettings: { preserveAspectRatio: 'xMidYMid slice' } // slice => cover
+        });
+
+        // events
+        anim.addEventListener('DOMLoaded', ()=> {
+          fixChildCanvasSize();
+          postEvent('lottie:ready', { totalFrames: anim.totalFrames });
+        });
+
+        anim.addEventListener('enterFrame', ()=> {
+          const pct = anim.totalFrames ? (anim.currentFrame / anim.totalFrames) : 0;
+          progress.value = (pct * 100).toFixed(2);
+          postEvent('lottie:frame', { currentFrame: anim.currentFrame, totalFrames: anim.totalFrames, progress: pct });
+        });
+
+        anim.addEventListener('complete', ()=> {
+          postEvent('lottie:ended', {});
+        });
+
+        postEvent('lottie:loaded', { file });
+
+      } catch (err) {
+        console.error(err);
+        wrap.innerHTML = '<div style="color:#fff;padding:12px">加载动画失败，请检查 JSON 路径与 CORS。</div>';
+        postEvent('lottie:error', { message: err.message });
+      }
+    }
+
+    // UI handlers
+    btnPlay.addEventListener('click', ()=>{
+      if (!anim) return;
+      if (playing) { anim.pause(); btnPlay.innerText = '播放'; postEvent('lottie:pause',{}); }
+      else { anim.play(); btnPlay.innerText = '暂停'; postEvent('lottie:play',{}); }
+      playing = !playing;
+    });
+
+    progress.addEventListener('input', ()=>{
+      if (!anim || !anim.totalFrames) return;
+      const pct = progress.value / 100;
+      const frame = Math.round(pct * anim.totalFrames);
+      anim.goToAndStop(frame, true);
+      playing = false;
+      btnPlay.innerText = '播放';
+      postEvent('lottie:seek', { frame, progress: pct });
+    });
+
+    speedSel.addEventListener('change', ()=>{
+      if (!anim) return;
+      const s = parseFloat(speedSel.value) || 1;
+      anim.setSpeed(s);
+      postEvent('lottie:setSpeed', { speed: s });
+    });
+
+    btnLoop.addEventListener('click', ()=>{
+      loop = !loop;
+      if (anim) anim.loop = loop;
+      btnLoop.innerText = '循环: ' + (loop ? '开' : '关');
+      postEvent('lottie:setLoop', { loop });
+    });
+
+    // postMessage API: 接收外部消息并执行
+    // 支持命令: { type: 'lottie:cmd', cmd: 'play'|'pause'|'seek'|'setSpeed'|'getProgress'|'setLoop', value: ... }
+    // 回应事件: postMessage({ type: 'lottie:event', event: 'lottie:ready'|'lottie:frame'|... , data: {...} }, '*')
+    function onMessage(e){
+      // optional: check e.origin if you want to restrict
+      const msg = e.data;
+      if (!msg || msg.type !== 'lottie:cmd') return;
+      const cmd = msg.cmd;
+      const val = msg.value;
+      if (!anim && cmd !== 'getProgress') return;
+      switch(cmd){
+        case 'play': anim.play(); playing = true; btnPlay.innerText = '暂停'; postEvent('lottie:play',{}); break;
+        case 'pause': anim.pause(); playing = false; btnPlay.innerText = '播放'; postEvent('lottie:pause',{}); break;
+        case 'seek':
+          // value can be {percent:0-1} or {frame:n}
+          if (val && typeof val.percent === 'number' && anim.totalFrames) {
+            const f = Math.round(val.percent * anim.totalFrames);
+            anim.goToAndStop(f, true);
+            postEvent('lottie:seek',{frame:f,progress:val.percent});
+          } else if (val && typeof val.frame === 'number') {
+            anim.goToAndStop(val.frame, true);
+            postEvent('lottie:seek',{frame:val.frame,progress: anim.totalFrames ? val.frame/anim.totalFrames : 0});
+          }
+          playing = false; btnPlay.innerText = '播放';
+          break;
+        case 'setSpeed':
+          if (val && typeof val.speed === 'number') anim.setSpeed(val.speed);
+          postEvent('lottie:setSpeed',{speed: val && val.speed});
+          break;
+        case 'setLoop':
+          if (val && typeof val.loop === 'boolean') { loop = val.loop; anim.loop = loop; btnLoop.innerText = '循环: ' + (loop ? '开' : '关'); }
+          postEvent('lottie:setLoop',{loop});
+          break;
+        case 'getProgress':
+          const pct = anim && anim.totalFrames ? (anim.currentFrame / anim.totalFrames) : 0;
+          postEvent('lottie:progress',{progress: pct, currentFrame: anim ? anim.currentFrame : 0, totalFrames: anim ? anim.totalFrames : 0});
+          break;
+        default:
+          // unknown
+          break;
+      }
+    }
+    window.addEventListener('message', onMessage, false);
+
+    // helper to post events
+    function postEvent(event, data){
+      const msg = { type: 'lottie:event', event, data: data || {} };
+      try { window.parent.postMessage(msg, '*'); } catch(e){}
+      // also dispatch a local custom event for in-page listeners
+      window.dispatchEvent(new CustomEvent('lottie:event', { detail: msg }));
+    }
+
+    // init
+    init();
+
+    // expose a simple in-page API for debugging
+    window.__LottieEmbed = {
+      play: ()=> window.postMessage({type:'lottie:cmd', cmd:'play'}, '*'),
+      pause: ()=> window.postMessage({type:'lottie:cmd', cmd:'pause'}, '*'),
+      seekPercent: (p)=> window.postMessage({type:'lottie:cmd', cmd:'seek', value:{percent:p}}, '*'),
+      seekFrame: (f)=> window.postMessage({type:'lottie:cmd', cmd:'seek', value:{frame:f}}, '*'),
+      setSpeed: (s)=> window.postMessage({type:'lottie:cmd', cmd:'setSpeed', value:{speed:s}}, '*'),
+      setLoop: (b)=> window.postMessage({type:'lottie:cmd', cmd:'setLoop', value:{loop:!!b}}, '*'),
+      getProgress: ()=> window.postMessage({type:'lottie:cmd', cmd:'getProgress'}, '*')
+    };
+
+    // click on stage toggles controls visibility
+    stage.addEventListener('click', (e)=>{
+      if (e.target.closest('#controls')) return;
+      if (controls.classList.contains('hidden')) controls.classList.remove('hidden');
+      else controls.classList.add('hidden');
+    });
+
+  })();
+  </script>
+</body>
+</html>
