@@ -1,21 +1,24 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Lottie Demo Wrapper Player</title>
-<style>
-  html,body{height:100%;margin:0;background:#111;color:#fff;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;}
-  .wrap{height:100vh;display:flex;flex-direction:column;}
-  .top{padding:8px 12px;background:#0b0b0b;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:8px;align-items:center;}
-  .controls{display:flex;gap:8px;align-items:center;flex:1;}
-  button{padding:6px 10px;border-radius:6px;border:none;background:#fff;color:#000;cursor:pointer;}
-  input[type=range]{width:320px;}
-  .stage{flex:1;position:relative;background:#000;}
-  iframe{width:100%;height:100%;border:0;background:transparent;}
-  .note{font-size:13px;color:#bbb;margin-left:8px;}
-  .small{padding:4px 8px;font-size:13px;}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wrapper Player — Embed Lottie Demo</title>
+  <style>
+    :root { --controls-height: 56px; }
+    html,body { height:100%; margin:0; background:#0b0b0b; color:#fff; font-family:system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .wrap { height:100vh; display:flex; flex-direction:column; }
+    .top { padding:10px 12px; background:#0a0a0a; border-bottom:1px solid rgba(255,255,255,0.04); display:flex; gap:8px; align-items:center; }
+    .controls { display:flex; gap:8px; align-items:center; flex:1; min-width:0; }
+    button { padding:6px 10px; border-radius:6px; border:none; background:#fff; color:#000; cursor:pointer; }
+    input[type="text"] { width:420px; padding:6px 8px; border-radius:6px; border:1px solid #333; background:#0b0b0b; color:#fff; }
+    input[type="range"] { width:320px; }
+    select { padding:6px 8px; border-radius:6px; border:none; background:#fff; color:#000; }
+    .stage { flex:1; position:relative; background:#000; }
+    iframe { width:100%; height:100%; border:0; background:transparent; }
+    .note { font-size:13px; color:#bbb; margin-left:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:420px; }
+    .small { padding:6px 8px; font-size:13px; }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -30,10 +33,11 @@
           <option value="2">2x</option>
         </select>
         <button id="btnLoop" class="small">循环: 开</button>
-        <span class="note" id="status">初始化...</span>
+        <span class="note" id="status">等待加载</span>
       </div>
-      <div style="margin-left:auto">
-        <input id="demoUrl" style="width:420px;padding:6px;border-radius:6px;border:1px solid #333;background:#0b0b0b;color:#fff" placeholder="demo URL (示例: https://assets.haoping.me/.../data.html)" />
+
+      <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+        <input id="demoUrl" type="text" placeholder="示例: beta_app/lottie/index_valuation/shot4/data.html" />
         <button id="loadBtn" class="small">加载</button>
       </div>
     </div>
@@ -44,12 +48,22 @@
   </div>
 
 <script>
+/*
+  Wrapper Player
+  - Fetches demo HTML from assets.haoping.me (or full URL)
+  - Injects a small bridge script + <base> tag so relative images/scripts resolve
+  - Loads modified HTML into an iframe via Blob URL (same-origin blob)
+  - Provides UI to control the embedded demo via postMessage commands
+  - If fetch fails (CORS/other), falls back to direct iframe.src = demoUrl (may be uncontrollable)
+*/
+
 (async function(){
+  const ASSET_HOST = 'https://assets.haoping.me';
   const params = new URLSearchParams(location.search);
-  const demoParam = params.get('demo') || '';
+  const demoParam = params.get('demo') || params.get('file') || '';
   const demoInput = document.getElementById('demoUrl');
   const loadBtn = document.getElementById('loadBtn');
-  const status = document.getElementById('status');
+  const statusEl = document.getElementById('status');
   const iframe = document.getElementById('playerFrame');
 
   const btnPlay = document.getElementById('btnPlay');
@@ -57,29 +71,35 @@
   const speed = document.getElementById('speed');
   const btnLoop = document.getElementById('btnLoop');
 
-  let iframeWindow = null;
   let bridgeReady = false;
+  let lastProgress = 0;
   let playing = true;
   let loop = true;
 
   if (demoParam) demoInput.value = demoParam;
 
-  // 注入到 demo HTML 的桥脚本（字符串形式）
+  // Bridge script to inject into demo HTML (string). It finds lottie instance and exposes commands via postMessage.
   const BRIDGE_SCRIPT = `
     <script>
     (function(){
-      // 自动寻找 lottie 实例（常见变量名）
-      const names = ['animation','anim','animItem','lottieAnim','player','animationItem'];
-      function findInstance(){
-        for (const n of names) {
-          if (window[n] && typeof window[n].play === 'function') return window[n];
+      const NAMES = ['animation','anim','animItem','lottieAnim','player','animationItem'];
+      function findInstance() {
+        for (const n of NAMES) {
+          try {
+            if (window[n] && typeof window[n].play === 'function') return window[n];
+          } catch(e){}
         }
-        // 如果 demo 使用 lottie.loadAnimation 并返回实例到局部变量，可能无法找到
+        // try lottie internal registry if available
+        try {
+          if (window.lottie && typeof window.lottie.getRegisteredAnimations === 'function') {
+            const regs = window.lottie.getRegisteredAnimations();
+            if (regs && regs.length) return regs[0];
+          }
+        } catch(e){}
         return null;
       }
 
-      // 控制器：接收父窗口消息并控制 lottie
-      function setupBridge(anim){
+      function setupBridge(anim) {
         window.__LottieBridge = {
           play: ()=> anim.play && anim.play(),
           pause: ()=> anim.pause && anim.pause(),
@@ -89,7 +109,7 @@
           setLoop: (b)=> { anim.loop = !!b; },
           getProgress: ()=> ({ progress: anim.totalFrames ? (anim.currentFrame/anim.totalFrames) : 0, currentFrame: anim.currentFrame || 0, totalFrames: anim.totalFrames || 0 })
         };
-        // 订阅 enterFrame 更新
+
         try {
           if (anim.addEventListener) {
             anim.addEventListener('enterFrame', ()=> {
@@ -100,26 +120,15 @@
             anim.addEventListener('complete', ()=> window.parent.postMessage({ type:'__lottie_event', event:'ended', data:{} }, '*'));
           }
         } catch(e){}
-        // notify parent bridge ready
         window.parent.postMessage({ type:'__lottie_event', event:'bridgeReady', data:{} }, '*');
       }
 
-      // wait for animation instance or for demo to expose it
       (function waitForAnim(timeout=5000){
         const start = Date.now();
         (function tick(){
           const anim = findInstance();
           if (anim) { setupBridge(anim); return; }
           if (Date.now() - start > timeout) {
-            // 尝试查找 lottie instances via lottie-web internal registry if available
-            if (window.lottie && window.lottie.getRegisteredAnimations) {
-              const regs = window.lottie.getRegisteredAnimations();
-              if (regs && regs.length) {
-                setupBridge(regs[0]);
-                return;
-              }
-            }
-            // give up
             window.parent.postMessage({ type:'__lottie_event', event:'bridgeFailed', data:{ message:'animation instance not found' } }, '*');
             return;
           }
@@ -127,7 +136,6 @@
         })();
       })();
 
-      // 接收父页面命令
       window.addEventListener('message', (e)=>{
         const msg = e.data;
         if (!msg || msg.type !== '__lottie_cmd') return;
@@ -151,120 +159,135 @@
     <\/script>
   `;
 
-  // 把 fetched HTML 注入桥脚本并生成 blob URL
-  async function makeWrappedBlobUrl(demoUrl){
-    const res = await fetch(demoUrl, {cache:'no-store'});
+  // Insert <base> tag so relative URLs in demo resolve to demo's directory
+  function injectBaseAndBridge(htmlText, demoUrl) {
+    const baseHref = demoUrl.substring(0, demoUrl.lastIndexOf('/') + 1);
+    // ensure <head> exists
+    if (/<head[^>]*>/i.test(htmlText)) {
+      // inject <base> right after <head>
+      htmlText = htmlText.replace(/<head([^>]*)>/i, `<head$1><base href="${baseHref}">`);
+    } else {
+      // create head
+      htmlText = '<head><base href="' + baseHref + '"></head>' + htmlText;
+    }
+    // inject bridge before </body>
+    if (/<\/body>/i.test(htmlText)) {
+      htmlText = htmlText.replace(/<\/body>/i, BRIDGE_SCRIPT + '</body>');
+    } else {
+      htmlText += BRIDGE_SCRIPT;
+    }
+    return htmlText;
+  }
+
+  // Create blob URL from fetched HTML (with injection)
+  async function makeWrappedBlobUrl(demoUrl) {
+    const res = await fetch(demoUrl, { cache: 'no-store' });
     if (!res.ok) throw new Error('fetch failed: ' + res.status);
     let html = await res.text();
-
-    // 在 </body> 前注入桥脚本；如果没有 body，则 append at end
-    if (html.includes('</body>')) {
-      html = html.replace('</body>', BRIDGE_SCRIPT + '</body>');
-    } else {
-      html += BRIDGE_SCRIPT;
-    }
-
-    // create blob url
+    html = injectBaseAndBridge(html, demoUrl);
     const blob = new Blob([html], { type: 'text/html' });
     return URL.createObjectURL(blob);
   }
 
-  // 加载 demo：优先 fetch+inject（可控制），失败则直接 iframe.src = demoUrl（受限）
-  async function loadDemo(demoUrl){
-    status.innerText = '加载中...';
+  // Load demo: try fetch+inject -> blob iframe (controllable). If fetch fails, fallback to direct iframe.src.
+  async function loadDemo(demoPathOrUrl) {
+    statusEl.textContent = '加载中...';
     bridgeReady = false;
-    iframeWindow = null;
     try {
+      // normalize demo URL: if not absolute, treat as path under ASSET_HOST
+      let demoUrl = demoPathOrUrl;
+      if (!/^https?:\/\//i.test(demoUrl)) {
+        demoUrl = ASSET_HOST.replace(/\/$/, '') + '/' + demoUrl.replace(/^\//, '');
+      }
       const blobUrl = await makeWrappedBlobUrl(demoUrl);
       iframe.src = blobUrl;
-      status.innerText = '已加载（注入桥脚本），等待桥就绪...';
-      // iframe 同源（blob）可以直接访问 contentWindow
-      iframe.onload = ()=> {
-        iframeWindow = iframe.contentWindow;
-        // wait for bridgeReady event from iframe
+      statusEl.textContent = '已注入桥脚本，等待桥就绪...';
+      // revoke blob after load to free memory (delayed)
+      iframe.onload = () => {
+        setTimeout(()=> URL.revokeObjectURL(blobUrl), 2000);
       };
     } catch (err) {
-      console.warn('fetch/inject 失败，尝试直接加载 iframe（可能无法控制）', err);
-      // 直接加载原始 URL（回退）
+      console.warn('注入失败，回退到直接加载 demo（可能无法控制）', err);
+      // fallback: direct load
+      let demoUrl = demoPathOrUrl;
+      if (!/^https?:\/\//i.test(demoUrl)) {
+        demoUrl = ASSET_HOST.replace(/\/$/, '') + '/' + demoUrl.replace(/^\//, '');
+      }
       iframe.src = demoUrl;
-      status.innerText = '已直接加载（回退）。若无法控制，请使用代理或允许 CORS。';
-      iframe.onload = ()=> { iframeWindow = iframe.contentWindow; };
+      statusEl.textContent = '直接加载（回退）。若无法控制，请确认 demo 可被 fetch 或使用代理。';
     }
   }
 
-  // 监听来自 iframe 的事件（bridgeReady / frame / progress / error）
-  window.addEventListener('message', (e)=>{
+  // Post command to iframe
+  function postCmd(cmd, value) {
+    const msg = { type: '__lottie_cmd', cmd, value };
+    try { iframe.contentWindow.postMessage(msg, '*'); } catch(e) { console.warn('postMessage failed', e); }
+  }
+
+  // Listen events from iframe
+  window.addEventListener('message', (e) => {
     const msg = e.data;
     if (!msg || msg.type !== '__lottie_event') return;
     const ev = msg.event;
     const data = msg.data || {};
     if (ev === 'bridgeReady') {
       bridgeReady = true;
-      status.innerText = '桥就绪，可控制';
+      statusEl.textContent = '桥就绪，可控制';
       // request initial progress
       postCmd('getProgress');
     } else if (ev === 'bridgeFailed') {
-      status.innerText = '桥初始化失败：' + (data.message || '');
+      statusEl.textContent = '桥初始化失败: ' + (data.message || '');
     } else if (ev === 'frame' || ev === 'progress') {
       const pct = data.progress || 0;
+      lastProgress = pct;
       progress.value = Math.round(pct * 100);
     } else if (ev === 'ready') {
-      status.innerText = '动画就绪，总帧数: ' + (data.totalFrames || '?');
+      statusEl.textContent = '动画就绪，总帧数: ' + (data.totalFrames || '?');
     } else if (ev === 'ended') {
-      status.innerText = '动画播放结束';
+      statusEl.textContent = '动画播放结束';
     }
   }, false);
 
-  // 发送命令到 iframe（桥）
-  function postCmd(cmd, value){
-    const msg = { type: '__lottie_cmd', cmd, value };
-    // if iframeWindow is available and same-origin (blob), use direct postMessage
-    try {
-      iframe.contentWindow.postMessage(msg, '*');
-    } catch(e){
-      console.warn('postMessage failed', e);
-    }
-  }
-
   // UI bindings
-  btnPlay.addEventListener('click', ()=>{
-    if (!bridgeReady) { status.innerText = '桥未就绪'; return; }
+  btnPlay.addEventListener('click', () => {
+    if (!bridgeReady) { statusEl.textContent = '桥未就绪'; return; }
     if (playing) { postCmd('pause'); btnPlay.innerText = '播放'; }
     else { postCmd('play'); btnPlay.innerText = '暂停'; }
     playing = !playing;
   });
 
-  progress.addEventListener('input', ()=>{
-    if (!bridgeReady) { status.innerText = '桥未就绪'; return; }
+  progress.addEventListener('input', () => {
+    if (!bridgeReady) { statusEl.textContent = '桥未就绪'; return; }
     const pct = progress.value / 100;
     postCmd('seekPercent', pct);
     playing = false;
     btnPlay.innerText = '播放';
   });
 
-  speed.addEventListener('change', ()=>{
-    if (!bridgeReady) { status.innerText = '桥未就绪'; return; }
+  speed.addEventListener('change', () => {
+    if (!bridgeReady) { statusEl.textContent = '桥未就绪'; return; }
     const s = parseFloat(speed.value);
     postCmd('setSpeed', s);
   });
 
-  btnLoop.addEventListener('click', ()=>{
+  btnLoop.addEventListener('click', () => {
     loop = !loop;
     postCmd('setLoop', loop);
     btnLoop.innerText = '循环: ' + (loop ? '开' : '关');
   });
 
-  loadBtn.addEventListener('click', ()=> {
+  loadBtn.addEventListener('click', () => {
     const url = demoInput.value.trim();
     if (!url) return;
+    statusEl.textContent = '开始加载...';
     loadDemo(url);
   });
 
-  // 如果 URL 中有 demo 参数，自动加载
+  // auto-load if demo param present
   if (demoInput.value) {
     loadDemo(demoInput.value);
   } else {
-    status.innerText = '请输入 demo URL 并点击加载';
+    statusEl.textContent = '请输入 demo 路径或 URL 并点击加载';
   }
 
 })();
