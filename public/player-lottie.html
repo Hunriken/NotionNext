@@ -11,17 +11,17 @@
       padding: 0;
       width: 100%;
       height: 100%;
-      background: transparent;
       display: flex;
       justify-content: center;
       align-items: center;
       overflow: hidden;
+      background: transparent; /* 默认透明 */
     }
 
     #lottie {
       width: 100%;
       height: 100%;
-      pointer-events: none; /* 防止 Notion 中误触 */
+      pointer-events: none;
     }
   </style>
 </head>
@@ -36,6 +36,17 @@
     const loop = params.get('loop') !== 'false'
     const autoplay = params.get('autoplay') !== 'false'
     const speed = parseFloat(params.get('speed') || '1')
+    const bg = params.get('bg') || 'transparent'
+
+    // 背景逻辑
+    let finalBg = 'transparent'
+    if (bg === 'light') {
+      finalBg = '#ffffff'
+    } else if (bg !== 'transparent') {
+      finalBg = bg
+    }
+
+    document.body.style.background = finalBg
 
     if (!file) {
       console.error('Missing ?file= URL')
