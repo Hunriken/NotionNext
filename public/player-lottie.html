@@ -32,7 +32,7 @@
   <script>
     const params = new URLSearchParams(window.location.search)
 
-    const file = params.get('file')
+    let file = params.get('file')
     const loop = params.get('loop') !== 'false'
     const autoplay = params.get('autoplay') !== 'false'
     const speed = parseFloat(params.get('speed') || '1')
@@ -45,8 +45,14 @@
     } else if (bg !== 'transparent') {
       finalBg = bg
     }
-
     document.body.style.background = finalBg
+
+    // 自动补全相对路径 → R2 自定义域名
+    const R2_DOMAIN = 'https://assets.haoping.me'
+    if (file && !file.startsWith('http://') && !file.startsWith('https://')) {
+      // 变成完整 URL
+      file = `${R2_DOMAIN}/${file}`
+    }
 
     if (!file) {
       console.error('Missing ?file= URL')
