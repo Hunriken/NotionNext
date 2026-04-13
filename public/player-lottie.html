@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    #lottie {
+      width: 100%;
+      height: 100%;
+      pointer-events: none; /* 防止 Notion 中误触 */
+    }
+  </style>
+</head>
+
+<body>
+  <div id="lottie"></div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search)
+
+    const file = params.get('file')
+    const loop = params.get('loop') !== 'false'
+    const autoplay = params.get('autoplay') !== 'false'
+    const speed = parseFloat(params.get('speed') || '1')
+
+    if (!file) {
+      console.error('Missing ?file= URL')
+    } else {
+      const anim = lottie.loadAnimation({
+        container: document.getElementById('lottie'),
+        renderer: 'svg',
+        loop,
+        autoplay,
+        path: file
+      })
+
+      anim.setSpeed(speed)
+    }
+  </script>
+</body>
+</html>
