@@ -1,179 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!-- 使用非-module 的 dotlottie-player（兼容 Notion） -->
-  <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.js"></script>
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>dotLottie Web Player</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
       width: 100%;
       height: 100%;
-      overflow: hidden;
-      background: transparent !important;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
     }
 
-    #container {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      cursor: pointer;
-    }
-
-    dotlottie-player {
-      width: 100%;
-      height: 100%;
+    #canvas {
+      width: 480px;
+      height: 270px;
       background: transparent;
+      display: block;
     }
 
     #controls {
-      position: absolute;
-      bottom: 12px;
-      left: 12px;
-      right: 12px;
-      height: 42px;
-
+      margin-top: 12px;
       display: flex;
+      gap: 8px;
       align-items: center;
-      gap: 10px;
-
-      padding: 8px 12px;
-      background: rgba(0,0,0,0.35);
-      backdrop-filter: blur(10px);
-      border-radius: 8px;
-
-      z-index: 10;
-      opacity: 1;
-      transition: opacity 0.4s ease;
-    }
-
-    #controls.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    #progress {
-      flex: 1;
     }
 
     button {
       padding: 6px 12px;
-      border: none;
       border-radius: 4px;
-      background: rgba(255,255,255,0.85);
+      border: none;
       cursor: pointer;
     }
   </style>
 </head>
-
 <body>
-  <div id="container">
-    <dotlottie-player id="player" autoplay loop></dotlottie-player>
+  <canvas id="canvas" width="960" height="540"></canvas>
 
-    <div id="controls">
-      <button id="toggle">暂停</button>
-      <input id="progress" type="range" min="0" max="100" value="0">
-    </div>
+  <div id="controls">
+    <button id="play">播放</button>
+    <button id="pause">暂停</button>
   </div>
 
-  <script>
+  <script type="module">
+    import { DotLottie } from "https://cdn.jsdelivr.net/npm/@lottiefiles/dotlottie-web/+esm";
+
+    // 你可以用 ?file=xxx.json 这种方式传入
     const params = new URLSearchParams(location.search);
-    let file = params.get('file');
+    let src = params.get("file");
 
-    /* 背景色 */
-    let bg = params.get('bg');
-    if (bg) {
-      bg = decodeURIComponent(bg);
-      if (/^[0-9a-fA-F]{3}$/.test(bg)) bg = "#" + bg;
-      if (/^[0-9a-fA-F]{6}$/.test(bg)) bg = "#" + bg;
-      document.documentElement.style.background = bg;
-      document.body.style.background = bg;
-      document.getElementById('container').style.background = bg;
-    }
-
-    /* 文件路径 */
+    // 如果是相对路径，可以在这里补全你的 CDN 前缀
     const R2 = "https://assets.haoping.me";
-    if (file && !file.startsWith("http") && !file.startsWith("file")) {
-      file = `${R2}/${file}`;
+    if (src && !src.startsWith("http")) {
+      src = `${R2}/${src}`;
     }
 
-    const player = document.getElementById("player");
-    if (file) player.load(file);
+    const canvas = document.getElementById("canvas");
 
-    /* 播放/暂停 */
-    let playing = true;
-    const toggle = document.getElementById("toggle");
-
-    function togglePlay() {
-      if (playing) {
-        player.pause();
-        toggle.innerText = "播放";
-      } else {
-        player.play();
-        toggle.innerText = "暂停";
-      }
-      playing = !playing;
-    }
-
-    toggle.onclick = togglePlay;
-
-    /* 点击切换播放 */
-    document.getElementById("container").addEventListener("click", (e) => {
-      if (e.target.closest("#controls")) return;
-      togglePlay();
+    const player = new DotLottie({
+      canvas,
+      src,              // 支持 .json 和 .lottie
+      autoplay: true,
+      loop: true,
+      renderConfig: {
+        autoResize: true,
+        devicePixelRatio: window.devicePixelRatio || 1,
+      },
+      layout: {
+        fit: "contain",
+        align: [0.5, 0.5],
+      },
     });
 
-    /* 进度条 */
-    const progress = document.getElementById("progress");
-
-    player.addEventListener("frame", (e) => {
-      const percent = (e.detail.frame / e.detail.totalFrames) * 100;
-      progress.value = percent;
-    });
-
-    progress.oninput = () => {
-      const frame = (progress.value / 100) * player.totalFrames;
-      player.seek(frame);
-      playing = false;
-      toggle.innerText = "播放";
-    };
-
-    /* 自动隐藏控制条 */
-    const controls = document.getElementById("controls");
-    let hideTimer = null;
-
-    function showControls() {
-      controls.classList.remove("hidden");
-      if (hideTimer) clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => {
-        controls.classList.add("hidden");
-      }, 1000);
-    }
-
-    document.addEventListener("mousemove", showControls);
-    showControls();
-
-    /* 自动暂停不可见动画 */
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          player.play();
-          toggle.innerText = "暂停";
-          playing = true;
-        } else {
-          player.pause();
-          toggle.innerText = "播放";
-          playing = false;
-        }
-      });
-    });
-
-    observer.observe(document.getElementById("container"));
+    document.getElementById("play").onclick = () => player.play();
+    document.getElementById("pause").onclick = () => player.pause();
   </script>
 </body>
 </html>
