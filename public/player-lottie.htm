@@ -97,22 +97,31 @@
       path: file
     })
 
-    // 让 SVG 完整显示 + 强制透明背景
+    /* -------------------------
+       透明背景：三重清除机制
+    -------------------------- */
     anim.addEventListener('DOMLoaded', () => {
       const svg = document.querySelector('#lottie svg')
       if (svg) {
-        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
         svg.style.background = 'transparent'
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
       }
 
-      // Lottie 有时会在 <g> 上加背景，也一起清掉
-      const groups = document.querySelectorAll('#lottie svg g')
-      groups.forEach(g => {
+      // 清除所有 rect 的白色背景
+      document.querySelectorAll('#lottie svg rect').forEach(r => {
+        r.setAttribute('fill', 'transparent')
+        r.style.fill = 'transparent'
+      })
+
+      // 清除所有 g 的背景
+      document.querySelectorAll('#lottie svg g').forEach(g => {
         g.style.background = 'transparent'
       })
     })
 
-    // 暂停 / 播放
+    /* -------------------------
+       暂停 / 播放
+    -------------------------- */
     let playing = true
     const toggle = document.getElementById('toggle')
     toggle.onclick = () => {
@@ -126,7 +135,9 @@
       playing = !playing
     }
 
-    // 进度条
+    /* -------------------------
+       进度条
+    -------------------------- */
     const progress = document.getElementById('progress')
 
     anim.addEventListener('enterFrame', () => {
@@ -141,7 +152,9 @@
       toggle.innerText = '播放'
     }
 
-    /* 自动隐藏控制条 */
+    /* -------------------------
+       自动隐藏控制条
+    -------------------------- */
     const controls = document.getElementById('controls')
     let hideTimer = null
 
@@ -155,6 +168,25 @@
 
     document.addEventListener('mousemove', showControls)
     showControls()
+
+    /* -------------------------
+       自动暂停不可见动画
+    -------------------------- */
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          anim.play()
+          toggle.innerText = '暂停'
+          playing = true
+        } else {
+          anim.pause()
+          toggle.innerText = '播放'
+          playing = false
+        }
+      })
+    })
+
+    observer.observe(document.getElementById('container'))
   </script>
 </body>
 </html>
