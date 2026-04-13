@@ -98,28 +98,6 @@
     })
 
     /* -------------------------
-       透明背景：三重清除机制
-    -------------------------- */
-    anim.addEventListener('DOMLoaded', () => {
-      const svg = document.querySelector('#lottie svg')
-      if (svg) {
-        svg.style.background = 'transparent'
-        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
-      }
-
-      // 清除所有 rect 的白色背景
-      document.querySelectorAll('#lottie svg rect').forEach(r => {
-        r.setAttribute('fill', 'transparent')
-        r.style.fill = 'transparent'
-      })
-
-      // 清除所有 g 的背景
-      document.querySelectorAll('#lottie svg g').forEach(g => {
-        g.style.background = 'transparent'
-      })
-    })
-
-    /* -------------------------
        暂停 / 播放
     -------------------------- */
     let playing = true
