@@ -15,7 +15,7 @@
       background: transparent !important;
     }
 
-    /* 播放器容器：用于承载 Lottie + 悬浮控件 */
+    /* 播放器容器 */
     #container {
       position: relative;
       width: 100%;
@@ -31,7 +31,7 @@
       background: transparent;
     }
 
-    /* 控制条悬浮在底部 */
+    /* 控制条悬浮 */
     #controls {
       position: absolute;
       bottom: 12px;
@@ -49,6 +49,15 @@
       border-radius: 8px;
 
       z-index: 10;
+
+      opacity: 1;
+      transition: opacity 0.4s ease;
+    }
+
+    /* 隐藏状态 */
+    #controls.hidden {
+      opacity: 0;
+      pointer-events: none;
     }
 
     #progress {
@@ -128,6 +137,26 @@
       playing = false
       toggle.innerText = '播放'
     }
+
+    /* -------------------------
+       自动隐藏控制条逻辑
+    -------------------------- */
+    const controls = document.getElementById('controls')
+    let hideTimer = null
+
+    function showControls() {
+      controls.classList.remove('hidden')
+      if (hideTimer) clearTimeout(hideTimer)
+      hideTimer = setTimeout(() => {
+        controls.classList.add('hidden')
+      }, 2000) // 鼠标 2 秒不动后隐藏
+    }
+
+    // 鼠标移动时显示
+    document.addEventListener('mousemove', showControls)
+
+    // 初始启动隐藏计时器
+    showControls()
   </script>
 </body>
 </html>
