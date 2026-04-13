@@ -94,8 +94,8 @@
       bg = decodeURIComponent(bg)
 
       // 自动补全 HEX：000 → #000，1a1a1a → #1a1a1a
-      if (/^[0-9a-fA-F]{3}$/.test(bg)) bg = "%23" + bg
-      if (/^[0-9a-fA-F]{6}$/.test(bg)) bg = "%23" + bg
+      if (/^[0-9a-fA-F]{3}$/.test(bg)) bg = "#" + bg
+      if (/^[0-9a-fA-F]{6}$/.test(bg)) bg = "#" + bg
 
       // 应用背景色
       document.documentElement.style.background = bg
