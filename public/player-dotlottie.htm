@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- dotLottie Web Player -->
+  <!-- 使用非-module 的 dotlottie-player（兼容 Notion） -->
   <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.js"></script>
 
   <style>
@@ -85,24 +85,18 @@
     const params = new URLSearchParams(location.search);
     let file = params.get('file');
 
-    /* -------------------------
-       背景颜色增强
-    -------------------------- */
+    /* 背景色 */
     let bg = params.get('bg');
     if (bg) {
       bg = decodeURIComponent(bg);
-
       if (/^[0-9a-fA-F]{3}$/.test(bg)) bg = "#" + bg;
       if (/^[0-9a-fA-F]{6}$/.test(bg)) bg = "#" + bg;
-
       document.documentElement.style.background = bg;
       document.body.style.background = bg;
       document.getElementById('container').style.background = bg;
     }
 
-    /* -------------------------
-       文件路径处理
-    -------------------------- */
+    /* 文件路径 */
     const R2 = "https://assets.haoping.me";
     if (file && !file.startsWith("http") && !file.startsWith("file")) {
       file = `${R2}/${file}`;
@@ -111,9 +105,7 @@
     const player = document.getElementById("player");
     if (file) player.load(file);
 
-    /* -------------------------
-       播放 / 暂停
-    -------------------------- */
+    /* 播放/暂停 */
     let playing = true;
     const toggle = document.getElementById("toggle");
 
@@ -130,17 +122,13 @@
 
     toggle.onclick = togglePlay;
 
-    /* -------------------------
-       点击任意位置切换播放 / 暂停
-    -------------------------- */
+    /* 点击切换播放 */
     document.getElementById("container").addEventListener("click", (e) => {
       if (e.target.closest("#controls")) return;
       togglePlay();
     });
 
-    /* -------------------------
-       进度条
-    -------------------------- */
+    /* 进度条 */
     const progress = document.getElementById("progress");
 
     player.addEventListener("frame", (e) => {
@@ -155,9 +143,7 @@
       toggle.innerText = "播放";
     };
 
-    /* -------------------------
-       自动隐藏控制条
-    -------------------------- */
+    /* 自动隐藏控制条 */
     const controls = document.getElementById("controls");
     let hideTimer = null;
 
@@ -172,9 +158,7 @@
     document.addEventListener("mousemove", showControls);
     showControls();
 
-    /* -------------------------
-       自动暂停不可见动画
-    -------------------------- */
+    /* 自动暂停不可见动画 */
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
