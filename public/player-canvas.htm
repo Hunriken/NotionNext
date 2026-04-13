@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 使用 5.12.2（Canvas 更稳定） -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 
   <style>
@@ -15,12 +16,14 @@
       background: transparent !important;
     }
 
+    /* 关键：给容器一个明确的可视尺寸 */
     #container {
       position: relative;
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 100vh;
       overflow: hidden;
-      cursor: pointer;
+      background: transparent;
+      cursor: pointer; /* 点击播放/暂停 */
     }
 
     #lottie {
@@ -29,7 +32,7 @@
       background: transparent;
     }
 
-    /* Canvas 必须强制撑满容器 */
+    /* 关键：强制 Canvas 撑满容器 */
     #lottie canvas {
       width: 100% !important;
       height: 100% !important;
@@ -88,129 +91,113 @@
 
   <script>
     const params = new URLSearchParams(location.search);
-    let file = params.get("file");
+    let file = params.get('file');
 
-    /* 背景色增强 */
-    let bg = params.get("bg");
+    /* 背景颜色增强：支持 HEX / RGB / RGBA / HSL / 名称 */
+    let bg = params.get('bg');
+
     if (bg) {
       bg = decodeURIComponent(bg);
+
       if (/^[0-9a-fA-F]{3}$/.test(bg)) bg = "#" + bg;
       if (/^[0-9a-fA-F]{6}$/.test(bg)) bg = "#" + bg;
 
       document.documentElement.style.background = bg;
       document.body.style.background = bg;
-      document.getElementById("container").style.background = bg;
-      document.getElementById("lottie").style.background = bg;
+      document.getElementById('container').style.background = bg;
+      document.getElementById('lottie').style.background = bg;
     }
 
-    /* 自动补全资源路径 */
-    const R2 = "https://assets.haoping.me";
-    if (file && !file.startsWith("http")) {
+    const R2 = 'https://assets.haoping.me';
+    if (file && !file.startsWith('http')) {
       file = `${R2}/${file}`;
     }
 
-    /* 手动加载 JSON 并修复 images 路径 */
-    async function loadJSON(url) {
-      const res = await fetch(url);
-      const json = await res.json();
-
-      const base = url.substring(0, url.lastIndexOf("/") + 1);
-
-      if (json.assets) {
-        json.assets.forEach(a => {
-          if (a.u && a.p) {
-            a.u = base + a.u; // 修复 images/ 路径
-          }
-        });
+    const anim = lottie.loadAnimation({
+      container: document.getElementById('lottie'),
+      renderer: 'canvas',          // ✅ 改成 canvas
+      loop: true,
+      autoplay: true,
+      path: file,
+      rendererSettings: {
+        clearCanvas: true,
+        preserveAspectRatio: 'xMidYMid meet'
       }
-
-      return json;
-    }
-
-    let anim;
-
-    loadJSON(file).then(json => {
-      anim = lottie.loadAnimation({
-        container: document.getElementById("lottie"),
-        renderer: "canvas",
-        loop: true,
-        autoplay: true,
-        animationData: json,
-        rendererSettings: {
-          clearCanvas: true,
-          preserveAspectRatio: "xMidYMid meet"
-        }
-      });
-
-      setupControls(anim);
     });
 
-    /* 控制条逻辑 */
-    function setupControls(anim) {
-      let playing = true;
-      const toggle = document.getElementById("toggle");
-      const progress = document.getElementById("progress");
+    /* Canvas 模式下不再操作 SVG DOM，直接删掉 DOMLoaded 那段 */
 
-      function togglePlay() {
-        if (playing) {
-          anim.pause();
-          toggle.innerText = "播放";
-        } else {
-          anim.play();
-          toggle.innerText = "暂停";
-        }
-        playing = !playing;
+    /* 暂停 / 播放 */
+    let playing = true;
+    const toggle = document.getElementById('toggle');
+
+    function togglePlay() {
+      if (playing) {
+        anim.pause();
+        toggle.innerText = '播放';
+      } else {
+        anim.play();
+        toggle.innerText = '暂停';
       }
-
-      toggle.onclick = togglePlay;
-
-      document.getElementById("container").addEventListener("click", e => {
-        if (e.target.closest("#controls")) return;
-        togglePlay();
-      });
-
-      anim.addEventListener("enterFrame", () => {
-        const percent = (anim.currentFrame / anim.totalFrames) * 100;
-        progress.value = percent;
-      });
-
-      progress.oninput = () => {
-        const frame = (progress.value / 100) * anim.totalFrames;
-        anim.goToAndStop(frame, true);
-        playing = false;
-        toggle.innerText = "播放";
-      };
-
-      const controls = document.getElementById("controls");
-      let hideTimer = null;
-
-      function showControls() {
-        controls.classList.remove("hidden");
-        if (hideTimer) clearTimeout(hideTimer);
-        hideTimer = setTimeout(() => {
-          controls.classList.add("hidden");
-        }, 1000);
-      }
-
-      document.addEventListener("mousemove", showControls);
-      showControls();
-
-      const observer = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            anim.play();
-            toggle.innerText = "暂停";
-            playing = true;
-          } else {
-            anim.pause();
-            toggle.innerText = "播放";
-            playing = false;
-          }
-        });
-      });
-
-      observer.observe(document.getElementById("container"));
+      playing = !playing;
     }
+
+    toggle.onclick = togglePlay;
+
+    /* 点击任意位置切换播放 / 暂停 */
+    document.getElementById('container').addEventListener('click', (e) => {
+      if (e.target.closest('#controls')) return;
+      togglePlay();
+    });
+
+    /* 进度条 */
+    const progress = document.getElementById('progress');
+
+    anim.addEventListener('enterFrame', () => {
+      if (!anim.totalFrames) return;
+      const percent = (anim.currentFrame / anim.totalFrames) * 100;
+      progress.value = percent;
+    });
+
+    progress.oninput = () => {
+      if (!anim.totalFrames) return;
+      const frame = (progress.value / 100) * anim.totalFrames;
+      anim.goToAndStop(frame, true);
+      playing = false;
+      toggle.innerText = '播放';
+    };
+
+    /* 自动隐藏控制条 */
+    const controls = document.getElementById('controls');
+    let hideTimer = null;
+
+    function showControls() {
+      controls.classList.remove('hidden');
+      if (hideTimer) clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        controls.classList.add('hidden');
+      }, 1000);
+    }
+
+    document.addEventListener('mousemove', showControls);
+    showControls();
+
+    /* 自动暂停不可见动画 */
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          anim.play();
+          toggle.innerText = '暂停';
+          playing = true;
+        } else {
+          anim.pause();
+          toggle.innerText = '播放';
+          playing = false;
+        }
+      });
+    });
+
+    observer.observe(document.getElementById('container'));
   </script>
 </body>
 </html>
