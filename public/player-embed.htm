@@ -3,266 +3,271 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Lottie Demo Player (embed + postMessage API)</title>
-
+<title>Lottie Demo Wrapper Player</title>
 <style>
-  html,body{height:100%;margin:0;background:transparent;}
-  #container{position:relative;width:100%;height:100%;overflow:hidden;background:transparent;display:flex;align-items:center;justify-content:center;}
-  #stage{width:100%;height:100%;position:relative;background:transparent;display:block;}
-  /* 强制 canvas/svg 填满 */
-  #stage canvas, #stage svg{width:100% !important;height:100% !important;display:block;}
-  /* 控制条 */
-  #controls{position:absolute;left:12px;right:12px;bottom:12px;height:48px;display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(0,0,0,0.36);border-radius:8px;backdrop-filter:blur(6px);z-index:20;transition:opacity .25s;}
-  #controls.hidden{opacity:0;pointer-events:none;}
-  #progress{flex:1;}
-  button,select{padding:6px 10px;border-radius:6px;border:none;background:#fff;cursor:pointer;}
-  input[type=range]{width:100%;}
-  .small{padding:6px 8px;font-size:13px;}
+  html,body{height:100%;margin:0;background:#111;color:#fff;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+  .wrap{height:100vh;display:flex;flex-direction:column;}
+  .top{padding:8px 12px;background:#0b0b0b;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:8px;align-items:center;}
+  .controls{display:flex;gap:8px;align-items:center;flex:1;}
+  button{padding:6px 10px;border-radius:6px;border:none;background:#fff;color:#000;cursor:pointer;}
+  input[type=range]{width:320px;}
+  .stage{flex:1;position:relative;background:#000;}
+  iframe{width:100%;height:100%;border:0;background:transparent;}
+  .note{font-size:13px;color:#bbb;margin-left:8px;}
+  .small{padding:4px 8px;font-size:13px;}
 </style>
 </head>
 <body>
-  <div id="container">
-    <div id="stage" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="top">
+      <div class="controls">
+        <button id="btnPlay" class="small">暂停</button>
+        <input id="progress" type="range" min="0" max="100" value="0" />
+        <select id="speed" class="small">
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2x</option>
+        </select>
+        <button id="btnLoop" class="small">循环: 开</button>
+        <span class="note" id="status">初始化...</span>
+      </div>
+      <div style="margin-left:auto">
+        <input id="demoUrl" style="width:420px;padding:6px;border-radius:6px;border:1px solid #333;background:#0b0b0b;color:#fff" placeholder="demo URL (示例: https://assets.haoping.me/.../data.html)" />
+        <button id="loadBtn" class="small">加载</button>
+      </div>
+    </div>
 
-    <div id="controls">
-      <button id="btnPlay" class="small">暂停</button>
-      <input id="progress" type="range" min="0" max="100" value="0" />
-      <select id="speed" class="small">
-        <option value="0.5">0.5x</option>
-        <option value="1" selected>1x</option>
-        <option value="1.5">1.5x</option>
-        <option value="2">2x</option>
-      </select>
-      <button id="btnLoop" class="small">循环: 开</button>
+    <div class="stage" id="stage">
+      <iframe id="playerFrame" sandbox="allow-scripts allow-same-origin"></iframe>
     </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-  <script>
-  (function(){
-    // 参数
-    const params = new URLSearchParams(location.search);
-    let file = params.get('file') || '';
-    const showControls = params.get('controls') !== '0'; // 默认显示
-    const bg = params.get('bg') || null;
-    const ASSET_ROOT = location.origin; // 可改为你的 assets 根
+<script>
+(async function(){
+  const params = new URLSearchParams(location.search);
+  const demoParam = params.get('demo') || '';
+  const demoInput = document.getElementById('demoUrl');
+  const loadBtn = document.getElementById('loadBtn');
+  const status = document.getElementById('status');
+  const iframe = document.getElementById('playerFrame');
 
-    // 背景色
-    if (bg) {
-      let c = decodeURIComponent(bg);
-      if (/^[0-9a-fA-F]{3}$/.test(c)) c = '#' + c;
-      if (/^[0-9a-fA-F]{6}$/.test(c)) c = '#' + c;
-      document.body.style.background = c;
-      document.getElementById('container').style.background = c;
-    }
+  const btnPlay = document.getElementById('btnPlay');
+  const progress = document.getElementById('progress');
+  const speed = document.getElementById('speed');
+  const btnLoop = document.getElementById('btnLoop');
 
-    // 补全相对路径
-    if (file && !file.startsWith('http') && !file.startsWith('/')) {
-      file = ASSET_ROOT.replace(/\/$/,'') + '/' + file.replace(/^\//,'');
-    }
+  let iframeWindow = null;
+  let bridgeReady = false;
+  let playing = true;
+  let loop = true;
 
-    const stage = document.getElementById('stage');
-    const controls = document.getElementById('controls');
-    const btnPlay = document.getElementById('btnPlay');
-    const progress = document.getElementById('progress');
-    const speedSel = document.getElementById('speed');
-    const btnLoop = document.getElementById('btnLoop');
+  if (demoParam) demoInput.value = demoParam;
 
-    if (!showControls) controls.classList.add('hidden');
+  // 注入到 demo HTML 的桥脚本（字符串形式）
+  const BRIDGE_SCRIPT = `
+    <script>
+    (function(){
+      // 自动寻找 lottie 实例（常见变量名）
+      const names = ['animation','anim','animItem','lottieAnim','player','animationItem'];
+      function findInstance(){
+        for (const n of names) {
+          if (window[n] && typeof window[n].play === 'function') return window[n];
+        }
+        // 如果 demo 使用 lottie.loadAnimation 并返回实例到局部变量，可能无法找到
+        return null;
+      }
 
-    // helper: fetch json and fix assets.u -> absolute
-    async function fetchAndFixJson(url){
-      const res = await fetch(url, {cache:'no-store'});
-      if (!res.ok) throw new Error('fetch json failed: ' + res.status);
-      const json = await res.json();
-      const base = url.substring(0, url.lastIndexOf('/')+1);
-      if (Array.isArray(json.assets)) {
-        json.assets.forEach(a=>{
-          if (a.u && a.p) {
-            if (!/^https?:\/\//i.test(a.u)) a.u = base + a.u;
+      // 控制器：接收父窗口消息并控制 lottie
+      function setupBridge(anim){
+        window.__LottieBridge = {
+          play: ()=> anim.play && anim.play(),
+          pause: ()=> anim.pause && anim.pause(),
+          seekFrame: (f)=> { if (anim.goToAndStop) anim.goToAndStop(f, true); else if (anim.seek) anim.seek(f); },
+          seekPercent: (p)=> { if (!anim.totalFrames) return; const f = Math.round(p * anim.totalFrames); if (anim.goToAndStop) anim.goToAndStop(f, true); },
+          setSpeed: (s)=> anim.setSpeed && anim.setSpeed(s),
+          setLoop: (b)=> { anim.loop = !!b; },
+          getProgress: ()=> ({ progress: anim.totalFrames ? (anim.currentFrame/anim.totalFrames) : 0, currentFrame: anim.currentFrame || 0, totalFrames: anim.totalFrames || 0 })
+        };
+        // 订阅 enterFrame 更新
+        try {
+          if (anim.addEventListener) {
+            anim.addEventListener('enterFrame', ()=> {
+              const msg = { type:'__lottie_event', event:'frame', data: { currentFrame: anim.currentFrame, totalFrames: anim.totalFrames, progress: anim.totalFrames ? anim.currentFrame/anim.totalFrames : 0 } };
+              window.parent.postMessage(msg, '*');
+            });
+            anim.addEventListener('DOMLoaded', ()=> window.parent.postMessage({ type:'__lottie_event', event:'ready', data:{ totalFrames: anim.totalFrames } }, '*'));
+            anim.addEventListener('complete', ()=> window.parent.postMessage({ type:'__lottie_event', event:'ended', data:{} }, '*'));
           }
-        });
+        } catch(e){}
+        // notify parent bridge ready
+        window.parent.postMessage({ type:'__lottie_event', event:'bridgeReady', data:{} }, '*');
       }
-      return json;
-    }
 
-    // create container for lottie (lottie will insert canvas/svg inside)
-    stage.innerHTML = '';
-    const wrap = document.createElement('div');
-    wrap.style.width = '100%';
-    wrap.style.height = '100%';
-    wrap.style.position = 'relative';
-    stage.appendChild(wrap);
-
-    // ensure canvas/svg pixel size for crispness
-    function fixChildCanvasSize(){
-      const cvs = wrap.querySelector('canvas');
-      if (!cvs) return;
-      const dpr = window.devicePixelRatio || 1;
-      const w = Math.max(1, Math.floor(wrap.clientWidth * dpr));
-      const h = Math.max(1, Math.floor(wrap.clientHeight * dpr));
-      if (cvs.width !== w || cvs.height !== h) {
-        cvs.width = w; cvs.height = h;
-      }
-      cvs.style.width = '100%'; cvs.style.height = '100%';
-    }
-    const ro = new ResizeObserver(()=> fixChildCanvasSize());
-    ro.observe(wrap);
-
-    // player state & API
-    let anim = null;
-    let playing = true;
-    let loop = true;
-
-    // load animationData (fix assets) then init lottie
-    async function init(){
-      if (!file) {
-        wrap.innerHTML = '<div style="color:#fff;padding:12px">未指定 file 参数</div>';
-        return;
-      }
-      try {
-        const json = await fetchAndFixJson(file);
-        // load animation using animationData (avoids relative path issues)
-        anim = lottie.loadAnimation({
-          container: wrap,
-          renderer: 'svg', // svg usually fine for demo; change to 'canvas' if you need canvas
-          loop: loop,
-          autoplay: true,
-          animationData: json,
-          rendererSettings: { preserveAspectRatio: 'xMidYMid slice' } // slice => cover
-        });
-
-        // events
-        anim.addEventListener('DOMLoaded', ()=> {
-          fixChildCanvasSize();
-          postEvent('lottie:ready', { totalFrames: anim.totalFrames });
-        });
-
-        anim.addEventListener('enterFrame', ()=> {
-          const pct = anim.totalFrames ? (anim.currentFrame / anim.totalFrames) : 0;
-          progress.value = (pct * 100).toFixed(2);
-          postEvent('lottie:frame', { currentFrame: anim.currentFrame, totalFrames: anim.totalFrames, progress: pct });
-        });
-
-        anim.addEventListener('complete', ()=> {
-          postEvent('lottie:ended', {});
-        });
-
-        postEvent('lottie:loaded', { file });
-
-      } catch (err) {
-        console.error(err);
-        wrap.innerHTML = '<div style="color:#fff;padding:12px">加载动画失败，请检查 JSON 路径与 CORS。</div>';
-        postEvent('lottie:error', { message: err.message });
-      }
-    }
-
-    // UI handlers
-    btnPlay.addEventListener('click', ()=>{
-      if (!anim) return;
-      if (playing) { anim.pause(); btnPlay.innerText = '播放'; postEvent('lottie:pause',{}); }
-      else { anim.play(); btnPlay.innerText = '暂停'; postEvent('lottie:play',{}); }
-      playing = !playing;
-    });
-
-    progress.addEventListener('input', ()=>{
-      if (!anim || !anim.totalFrames) return;
-      const pct = progress.value / 100;
-      const frame = Math.round(pct * anim.totalFrames);
-      anim.goToAndStop(frame, true);
-      playing = false;
-      btnPlay.innerText = '播放';
-      postEvent('lottie:seek', { frame, progress: pct });
-    });
-
-    speedSel.addEventListener('change', ()=>{
-      if (!anim) return;
-      const s = parseFloat(speedSel.value) || 1;
-      anim.setSpeed(s);
-      postEvent('lottie:setSpeed', { speed: s });
-    });
-
-    btnLoop.addEventListener('click', ()=>{
-      loop = !loop;
-      if (anim) anim.loop = loop;
-      btnLoop.innerText = '循环: ' + (loop ? '开' : '关');
-      postEvent('lottie:setLoop', { loop });
-    });
-
-    // postMessage API: 接收外部消息并执行
-    // 支持命令: { type: 'lottie:cmd', cmd: 'play'|'pause'|'seek'|'setSpeed'|'getProgress'|'setLoop', value: ... }
-    // 回应事件: postMessage({ type: 'lottie:event', event: 'lottie:ready'|'lottie:frame'|... , data: {...} }, '*')
-    function onMessage(e){
-      // optional: check e.origin if you want to restrict
-      const msg = e.data;
-      if (!msg || msg.type !== 'lottie:cmd') return;
-      const cmd = msg.cmd;
-      const val = msg.value;
-      if (!anim && cmd !== 'getProgress') return;
-      switch(cmd){
-        case 'play': anim.play(); playing = true; btnPlay.innerText = '暂停'; postEvent('lottie:play',{}); break;
-        case 'pause': anim.pause(); playing = false; btnPlay.innerText = '播放'; postEvent('lottie:pause',{}); break;
-        case 'seek':
-          // value can be {percent:0-1} or {frame:n}
-          if (val && typeof val.percent === 'number' && anim.totalFrames) {
-            const f = Math.round(val.percent * anim.totalFrames);
-            anim.goToAndStop(f, true);
-            postEvent('lottie:seek',{frame:f,progress:val.percent});
-          } else if (val && typeof val.frame === 'number') {
-            anim.goToAndStop(val.frame, true);
-            postEvent('lottie:seek',{frame:val.frame,progress: anim.totalFrames ? val.frame/anim.totalFrames : 0});
+      // wait for animation instance or for demo to expose it
+      (function waitForAnim(timeout=5000){
+        const start = Date.now();
+        (function tick(){
+          const anim = findInstance();
+          if (anim) { setupBridge(anim); return; }
+          if (Date.now() - start > timeout) {
+            // 尝试查找 lottie instances via lottie-web internal registry if available
+            if (window.lottie && window.lottie.getRegisteredAnimations) {
+              const regs = window.lottie.getRegisteredAnimations();
+              if (regs && regs.length) {
+                setupBridge(regs[0]);
+                return;
+              }
+            }
+            // give up
+            window.parent.postMessage({ type:'__lottie_event', event:'bridgeFailed', data:{ message:'animation instance not found' } }, '*');
+            return;
           }
-          playing = false; btnPlay.innerText = '播放';
-          break;
-        case 'setSpeed':
-          if (val && typeof val.speed === 'number') anim.setSpeed(val.speed);
-          postEvent('lottie:setSpeed',{speed: val && val.speed});
-          break;
-        case 'setLoop':
-          if (val && typeof val.loop === 'boolean') { loop = val.loop; anim.loop = loop; btnLoop.innerText = '循环: ' + (loop ? '开' : '关'); }
-          postEvent('lottie:setLoop',{loop});
-          break;
-        case 'getProgress':
-          const pct = anim && anim.totalFrames ? (anim.currentFrame / anim.totalFrames) : 0;
-          postEvent('lottie:progress',{progress: pct, currentFrame: anim ? anim.currentFrame : 0, totalFrames: anim ? anim.totalFrames : 0});
-          break;
-        default:
-          // unknown
-          break;
-      }
+          requestAnimationFrame(tick);
+        })();
+      })();
+
+      // 接收父页面命令
+      window.addEventListener('message', (e)=>{
+        const msg = e.data;
+        if (!msg || msg.type !== '__lottie_cmd') return;
+        const cmd = msg.cmd;
+        const v = msg.value;
+        if (!window.__LottieBridge) return;
+        switch(cmd){
+          case 'play': window.__LottieBridge.play(); break;
+          case 'pause': window.__LottieBridge.pause(); break;
+          case 'seekPercent': window.__LottieBridge.seekPercent(v); break;
+          case 'seekFrame': window.__LottieBridge.seekFrame(v); break;
+          case 'setSpeed': window.__LottieBridge.setSpeed(v); break;
+          case 'setLoop': window.__LottieBridge.setLoop(v); break;
+          case 'getProgress':
+            const p = window.__LottieBridge.getProgress();
+            window.parent.postMessage({ type:'__lottie_event', event:'progress', data: p }, '*');
+            break;
+        }
+      }, false);
+    })();
+    <\/script>
+  `;
+
+  // 把 fetched HTML 注入桥脚本并生成 blob URL
+  async function makeWrappedBlobUrl(demoUrl){
+    const res = await fetch(demoUrl, {cache:'no-store'});
+    if (!res.ok) throw new Error('fetch failed: ' + res.status);
+    let html = await res.text();
+
+    // 在 </body> 前注入桥脚本；如果没有 body，则 append at end
+    if (html.includes('</body>')) {
+      html = html.replace('</body>', BRIDGE_SCRIPT + '</body>');
+    } else {
+      html += BRIDGE_SCRIPT;
     }
-    window.addEventListener('message', onMessage, false);
 
-    // helper to post events
-    function postEvent(event, data){
-      const msg = { type: 'lottie:event', event, data: data || {} };
-      try { window.parent.postMessage(msg, '*'); } catch(e){}
-      // also dispatch a local custom event for in-page listeners
-      window.dispatchEvent(new CustomEvent('lottie:event', { detail: msg }));
+    // create blob url
+    const blob = new Blob([html], { type: 'text/html' });
+    return URL.createObjectURL(blob);
+  }
+
+  // 加载 demo：优先 fetch+inject（可控制），失败则直接 iframe.src = demoUrl（受限）
+  async function loadDemo(demoUrl){
+    status.innerText = '加载中...';
+    bridgeReady = false;
+    iframeWindow = null;
+    try {
+      const blobUrl = await makeWrappedBlobUrl(demoUrl);
+      iframe.src = blobUrl;
+      status.innerText = '已加载（注入桥脚本），等待桥就绪...';
+      // iframe 同源（blob）可以直接访问 contentWindow
+      iframe.onload = ()=> {
+        iframeWindow = iframe.contentWindow;
+        // wait for bridgeReady event from iframe
+      };
+    } catch (err) {
+      console.warn('fetch/inject 失败，尝试直接加载 iframe（可能无法控制）', err);
+      // 直接加载原始 URL（回退）
+      iframe.src = demoUrl;
+      status.innerText = '已直接加载（回退）。若无法控制，请使用代理或允许 CORS。';
+      iframe.onload = ()=> { iframeWindow = iframe.contentWindow; };
     }
+  }
 
-    // init
-    init();
+  // 监听来自 iframe 的事件（bridgeReady / frame / progress / error）
+  window.addEventListener('message', (e)=>{
+    const msg = e.data;
+    if (!msg || msg.type !== '__lottie_event') return;
+    const ev = msg.event;
+    const data = msg.data || {};
+    if (ev === 'bridgeReady') {
+      bridgeReady = true;
+      status.innerText = '桥就绪，可控制';
+      // request initial progress
+      postCmd('getProgress');
+    } else if (ev === 'bridgeFailed') {
+      status.innerText = '桥初始化失败：' + (data.message || '');
+    } else if (ev === 'frame' || ev === 'progress') {
+      const pct = data.progress || 0;
+      progress.value = Math.round(pct * 100);
+    } else if (ev === 'ready') {
+      status.innerText = '动画就绪，总帧数: ' + (data.totalFrames || '?');
+    } else if (ev === 'ended') {
+      status.innerText = '动画播放结束';
+    }
+  }, false);
 
-    // expose a simple in-page API for debugging
-    window.__LottieEmbed = {
-      play: ()=> window.postMessage({type:'lottie:cmd', cmd:'play'}, '*'),
-      pause: ()=> window.postMessage({type:'lottie:cmd', cmd:'pause'}, '*'),
-      seekPercent: (p)=> window.postMessage({type:'lottie:cmd', cmd:'seek', value:{percent:p}}, '*'),
-      seekFrame: (f)=> window.postMessage({type:'lottie:cmd', cmd:'seek', value:{frame:f}}, '*'),
-      setSpeed: (s)=> window.postMessage({type:'lottie:cmd', cmd:'setSpeed', value:{speed:s}}, '*'),
-      setLoop: (b)=> window.postMessage({type:'lottie:cmd', cmd:'setLoop', value:{loop:!!b}}, '*'),
-      getProgress: ()=> window.postMessage({type:'lottie:cmd', cmd:'getProgress'}, '*')
-    };
+  // 发送命令到 iframe（桥）
+  function postCmd(cmd, value){
+    const msg = { type: '__lottie_cmd', cmd, value };
+    // if iframeWindow is available and same-origin (blob), use direct postMessage
+    try {
+      iframe.contentWindow.postMessage(msg, '*');
+    } catch(e){
+      console.warn('postMessage failed', e);
+    }
+  }
 
-    // click on stage toggles controls visibility
-    stage.addEventListener('click', (e)=>{
-      if (e.target.closest('#controls')) return;
-      if (controls.classList.contains('hidden')) controls.classList.remove('hidden');
-      else controls.classList.add('hidden');
-    });
+  // UI bindings
+  btnPlay.addEventListener('click', ()=>{
+    if (!bridgeReady) { status.innerText = '桥未就绪'; return; }
+    if (playing) { postCmd('pause'); btnPlay.innerText = '播放'; }
+    else { postCmd('play'); btnPlay.innerText = '暂停'; }
+    playing = !playing;
+  });
 
-  })();
-  </script>
+  progress.addEventListener('input', ()=>{
+    if (!bridgeReady) { status.innerText = '桥未就绪'; return; }
+    const pct = progress.value / 100;
+    postCmd('seekPercent', pct);
+    playing = false;
+    btnPlay.innerText = '播放';
+  });
+
+  speed.addEventListener('change', ()=>{
+    if (!bridgeReady) { status.innerText = '桥未就绪'; return; }
+    const s = parseFloat(speed.value);
+    postCmd('setSpeed', s);
+  });
+
+  btnLoop.addEventListener('click', ()=>{
+    loop = !loop;
+    postCmd('setLoop', loop);
+    btnLoop.innerText = '循环: ' + (loop ? '开' : '关');
+  });
+
+  loadBtn.addEventListener('click', ()=> {
+    const url = demoInput.value.trim();
+    if (!url) return;
+    loadDemo(url);
+  });
+
+  // 如果 URL 中有 demo 参数，自动加载
+  if (demoInput.value) {
+    loadDemo(demoInput.value);
+  } else {
+    status.innerText = '请输入 demo URL 并点击加载';
+  }
+
+})();
+</script>
 </body>
 </html>
