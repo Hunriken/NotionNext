@@ -12,7 +12,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: transparent;
+      background: transparent !important;
     }
 
     #container {
@@ -21,6 +21,7 @@
       height: 100%;
       overflow: hidden;
       background: transparent;
+      cursor: pointer; /* 点击播放/暂停 */
     }
 
     #lottie {
@@ -85,20 +86,22 @@
     let file = params.get('file')
 
     /* -------------------------
-       背景颜色参数（关键）
+       背景颜色增强：支持 HEX / RGB / RGBA / HSL / 名称
     -------------------------- */
-    const bg = params.get('bg')
+    let bg = params.get('bg')
+
     if (bg) {
-    const container = document.getElementById('container')
-    container.style.background = bg
+      bg = decodeURIComponent(bg)
 
-    // 关键：让 lottie 区域也继承背景色，避免透明漏出 iframe 白色
-    document.getElementById('lottie').style.background = bg
+      // 自动补全 HEX：000 → #000，1a1a1a → #1a1a1a
+      if (/^[0-9a-fA-F]{3}$/.test(bg)) bg = "#" + bg
+      if (/^[0-9a-fA-F]{6}$/.test(bg)) bg = "#" + bg
 
-    // 保险：覆盖 html/body 背景
-    document.body.style.background = bg
-    document.documentElement.style.background = bg
-
+      // 应用背景色
+      document.documentElement.style.background = bg
+      document.body.style.background = bg
+      document.getElementById('container').style.background = bg
+      document.getElementById('lottie').style.background = bg
     }
 
     const R2 = 'https://assets.haoping.me'
@@ -115,11 +118,25 @@
     })
 
     /* -------------------------
+       清除 JSON 内部白色背景 path
+    -------------------------- */
+    anim.addEventListener('DOMLoaded', () => {
+      const svg = document.querySelector('#lottie svg')
+      if (!svg) return
+
+      svg.querySelectorAll('path[fill="rgb(255,255,255)"]').forEach(p => {
+        p.setAttribute('fill', 'transparent')
+        p.style.fill = 'transparent'
+      })
+    })
+
+    /* -------------------------
        暂停 / 播放
     -------------------------- */
     let playing = true
     const toggle = document.getElementById('toggle')
-    toggle.onclick = () => {
+
+    function togglePlay() {
       if (playing) {
         anim.pause()
         toggle.innerText = '播放'
@@ -129,6 +146,16 @@
       }
       playing = !playing
     }
+
+    toggle.onclick = togglePlay
+
+    /* -------------------------
+       点击任意位置切换播放 / 暂停
+    -------------------------- */
+    document.getElementById('container').addEventListener('click', (e) => {
+      if (e.target.closest('#controls')) return
+      togglePlay()
+    })
 
     /* -------------------------
        进度条
