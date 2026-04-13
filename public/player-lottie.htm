@@ -11,17 +11,29 @@
       padding: 0;
       width: 100%;
       height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
       overflow: hidden;
-      background: transparent; /* 默认透明 */
+      background: transparent !important; /* 默认透明 */
+      display: flex;
+      flex-direction: column;
     }
 
     #lottie {
-      width: 100%;
-      height: 100%;
+      flex: 1;
       pointer-events: none;
+    }
+
+    #controls {
+      height: 50px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: rgba(0,0,0,0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    #progress {
+      flex: 1;
     }
   </style>
 </head>
@@ -29,43 +41,55 @@
 <body>
   <div id="lottie"></div>
 
+  <div id="controls">
+    <button id="toggle">暂停</button>
+    <input id="progress" type="range" min="0" max="100" value="0">
+  </div>
+
   <script>
-    const params = new URLSearchParams(window.location.search)
-
+    const params = new URLSearchParams(location.search)
     let file = params.get('file')
-    const loop = params.get('loop') !== 'false'
-    const autoplay = params.get('autoplay') !== 'false'
-    const speed = parseFloat(params.get('speed') || '1')
-    const bg = params.get('bg') || 'transparent'
 
-    // 背景逻辑
-    let finalBg = 'transparent'
-    if (bg === 'light') {
-      finalBg = '#ffffff'
-    } else if (bg !== 'transparent') {
-      finalBg = bg
-    }
-    document.body.style.background = finalBg
-
-    // 自动补全相对路径 → R2 自定义域名
-    const R2_DOMAIN = 'https://assets.haoping.me'
-    if (file && !file.startsWith('http://') && !file.startsWith('https://')) {
-      // 变成完整 URL
-      file = `${R2_DOMAIN}/${file}`
+    const R2 = 'https://assets.haoping.me'
+    if (file && !file.startsWith('http')) {
+      file = `${R2}/${file}`
     }
 
-    if (!file) {
-      console.error('Missing ?file= URL')
-    } else {
-      const anim = lottie.loadAnimation({
-        container: document.getElementById('lottie'),
-        renderer: 'svg',
-        loop,
-        autoplay,
-        path: file
-      })
+    const anim = lottie.loadAnimation({
+      container: document.getElementById('lottie'),
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      path: file
+    })
 
-      anim.setSpeed(speed)
+    // 暂停 / 播放
+    let playing = true
+    const toggle = document.getElementById('toggle')
+    toggle.onclick = () => {
+      if (playing) {
+        anim.pause()
+        toggle.innerText = '播放'
+      } else {
+        anim.play()
+        toggle.innerText = '暂停'
+      }
+      playing = !playing
+    }
+
+    // 进度条
+    const progress = document.getElementById('progress')
+
+    anim.addEventListener('enterFrame', () => {
+      const percent = (anim.currentFrame / anim.totalFrames) * 100
+      progress.value = percent
+    })
+
+    progress.oninput = () => {
+      const frame = (progress.value / 100) * anim.totalFrames
+      anim.goToAndStop(frame, true)
+      playing = false
+      toggle.innerText = '播放'
     }
   </script>
 </body>
