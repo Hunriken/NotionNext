@@ -7,9 +7,18 @@
 
   <style>
     :root { --controls-height: 48px; }
-    html,body { height:100%; margin:0; background:transparent; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
-    #container { position:relative; width:100%; height:100vh; overflow:hidden; background:transparent; cursor:pointer; }
-    iframe { width:100%; height:100%; border:0; display:block; background:transparent; }
+    html,body { height:100%; margin:0; background:transparent; font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial; }
+    #container { position:relative; width:100%; height:100vh; overflow:hidden; background:transparent; }
+    iframe { width:100%; height:100%; border:0; display:block; background:transparent; z-index:1; }
+
+    /* 点击捕获层：覆盖 iframe，用于接收点击与移动事件 */
+    #clickOverlay {
+      position:absolute;
+      inset:0;
+      z-index:5;
+      background:transparent;
+      pointer-events:auto;
+    }
 
     /* 控制条：仅播放/暂停 + 进度条 */
     #controls {
@@ -31,10 +40,10 @@
       transition:opacity .25s ease;
     }
 
-    /* 当鼠标悬停在容器上（包括 iframe 区域）时显示控制条 */
-    #container:hover #controls { opacity:1; pointer-events:auto; }
+    /* 通过 JS 控制显示/隐藏（:hover 不再依赖） */
+    #controls.visible { opacity:1; pointer-events:auto; }
 
-    /* 进度条样式（参考你给的样式） */
+    /* 进度条样式 */
     #progress {
       -webkit-appearance:none;
       appearance:none;
@@ -45,15 +54,15 @@
       outline:none;
       cursor:pointer;
     }
-    #progress::-webkit-slider-thumb {
+    #progress::-webkit-slider-thumb{
       -webkit-appearance:none;
       appearance:none;
-      width:14px; height:14px; border-radius:50%;
-      background:#fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); border:2px solid rgba(0,0,0,0.08);
+      width:14px;height:14px;border-radius:50%;
+      background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid rgba(0,0,0,0.08);
       margin-top:-4px;
     }
-    #progress::-moz-range-thumb {
-      width:14px; height:14px; border-radius:50%; background:#fff; border:2px solid rgba(0,0,0,0.08);
+    #progress::-moz-range-thumb{
+      width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid rgba(0,0,0,0.08);
     }
 
     #toggle {
@@ -66,16 +75,18 @@
       white-space:nowrap;
     }
 
-    /* 小屏幕适配 */
-    @media (max-width:480px) {
-      #controls { left:8px; right:8px; bottom:8px; padding:6px; gap:8px; }
-      #toggle { padding:6px 8px; font-size:14px; }
+    @media (max-width:480px){
+      #controls{ left:8px; right:8px; bottom:8px; padding:6px; gap:8px; }
+      #toggle{ padding:6px 8px; font-size:14px; }
     }
   </style>
 </head>
 <body>
   <div id="container">
     <iframe id="playerFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+
+    <!-- 覆盖在 iframe 之上，用于捕获点击与移动（控制播放/隐藏逻辑） -->
+    <div id="clickOverlay" aria-hidden="true"></div>
 
     <div id="controls" aria-hidden="false">
       <button id="toggle">暂停</button>
@@ -85,11 +96,14 @@
 
 <script>
 /*
-  简洁版 Wrapper Player
-  - 通过 ?demo=path 注入桥脚并加载 demo HTML（相对于 assets.haoping.me）
-  - 支持 &bg=black 或 &bg=1d1b59 等背景色（默认透明）
-  - 仅保留 播放/暂停 + 进度条
-  - 自动在不可见时 pause（IntersectionObserver）
+  最终版 Wrapper Player（简洁）
+  - 支持 ?demo=path 和 &bg=hex 或关键字
+  - 注入桥脚并覆盖 data.html 的 body/#lottie 背景
+  - 点击任意位置（除控制条外）切换播放/暂停
+  - 进度条显示逻辑：
+      * 鼠标移动时显示控制条
+      * 鼠标停止移动 1s 后隐藏（即使仍在进度条上）
+      * 鼠标离开容器后延迟 1s 隐藏
 */
 
 (async function(){
@@ -100,6 +114,8 @@
 
   const iframe = document.getElementById('playerFrame');
   const container = document.getElementById('container');
+  const overlay = document.getElementById('clickOverlay');
+  const controls = document.getElementById('controls');
   const toggle = document.getElementById('toggle');
   const progress = document.getElementById('progress');
 
@@ -107,22 +123,19 @@
   let playing = true;
   let lastPct = 0;
 
-  // 背景色支持短/长 hex 或关键字
+  // 背景色处理（外层 + 注入内层）
+  let bgCss = 'transparent';
   if (bgParam) {
     let bg = decodeURIComponent(bgParam);
     if (/^[0-9a-fA-F]{3}$/.test(bg)) bg = '#' + bg;
     if (/^[0-9a-fA-F]{6}$/.test(bg)) bg = '#' + bg;
-    document.documentElement.style.background = bg;
-    document.body.style.background = bg;
-    container.style.background = bg;
-  } else {
-    // 默认透明
-    document.documentElement.style.background = 'transparent';
-    document.body.style.background = 'transparent';
-    container.style.background = 'transparent';
+    bgCss = bg;
   }
+  document.documentElement.style.background = bgCss;
+  document.body.style.background = bgCss;
+  container.style.background = bgCss;
 
-  // 桥脚：注入到 demo HTML 中，负责查找 lottie 实例并响应父消息
+  // 桥脚（注入到 demo HTML）
   const BRIDGE_SCRIPT = `
     <script>
     (function(){
@@ -194,13 +207,20 @@
     <\/script>
   `;
 
-  // 在 HTML 中注入 <base> 与桥脚，确保相对资源能正确解析
+  // 覆盖 data.html 中的背景样式（强制）
+  const OVERRIDE_STYLE = `
+    <style>
+      html,body{background:${bgCss} !important;}
+      #lottie{background:${bgCss} !important;}
+    </style>
+  `;
+
   function injectBaseAndBridge(htmlText, demoUrl) {
     const baseHref = demoUrl.substring(0, demoUrl.lastIndexOf('/') + 1);
     if (/<head[^>]*>/i.test(htmlText)) {
-      htmlText = htmlText.replace(/<head([^>]*)>/i, `<head$1><base href="${baseHref}">`);
+      htmlText = htmlText.replace(/<head([^>]*)>/i, `<head$1><base href="${baseHref}">${OVERRIDE_STYLE}`);
     } else {
-      htmlText = '<head><base href="' + baseHref + '"></head>' + htmlText;
+      htmlText = '<head><base href="' + baseHref + '">' + OVERRIDE_STYLE + '</head>' + htmlText;
     }
     if (/<\/body>/i.test(htmlText)) {
       htmlText = htmlText.replace(/<\/body>/i, BRIDGE_SCRIPT + '</body>');
@@ -221,7 +241,6 @@
 
   async function loadDemo(demoPathOrUrl) {
     bridgeReady = false;
-    lastPct = 0;
     progress.value = 0;
     try {
       let demoUrl = demoPathOrUrl;
@@ -232,7 +251,6 @@
       iframe.src = blobUrl;
       iframe.onload = ()=> { setTimeout(()=> URL.revokeObjectURL(blobUrl), 2000); };
     } catch (err) {
-      // 回退：直接加载（不可控）
       let demoUrl = demoPathOrUrl;
       if (!/^https?:\/\//i.test(demoUrl)) {
         demoUrl = ASSET_HOST.replace(/\/$/, '') + '/' + demoUrl.replace(/^\//, '');
@@ -246,7 +264,7 @@
     try { iframe.contentWindow.postMessage(msg, '*'); } catch(e){}
   }
 
-  // 接收 iframe 事件（frame/progress/bridgeReady）
+  // 接收 iframe 事件
   window.addEventListener('message', (e) => {
     const msg = e.data;
     if (!msg || msg.type !== '__lottie_event') return;
@@ -254,7 +272,6 @@
     const data = msg.data || {};
     if (ev === 'bridgeReady') {
       bridgeReady = true;
-      // 请求初始进度
       postCmd('getProgress');
     } else if (ev === 'frame' || ev === 'progress') {
       const pct = data.progress || 0;
@@ -264,15 +281,21 @@
     }
   }, false);
 
-  // UI 事件
-  toggle.addEventListener('click', (e) => {
-    e.stopPropagation();
+  // 点击任意位置切换播放/暂停（overlay 捕获，controls 在上层，不会被拦截）
+  overlay.addEventListener('pointerdown', (e) => {
+    // 如果点击在控制条区域（controls 覆盖在 overlay 之上），则忽略（控制条会处理）
+    const rect = controls.getBoundingClientRect();
+    const x = e.clientX, y = e.clientY;
+    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+      return;
+    }
     if (!bridgeReady) return;
     if (playing) { postCmd('pause'); toggle.innerText = '播放'; }
     else { postCmd('play'); toggle.innerText = '暂停'; }
     playing = !playing;
   });
 
+  // 进度条交互
   progress.addEventListener('input', () => {
     if (!bridgeReady) return;
     const pct = progress.value / 100;
@@ -281,37 +304,67 @@
     toggle.innerText = '播放';
   });
 
-  // 点击容器切换播放（忽略点击控制条）
-  container.addEventListener('click', (e) => {
-    if (e.target.closest('#controls')) return;
+  // 控制按钮（也可点击）
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
     if (!bridgeReady) return;
     if (playing) { postCmd('pause'); toggle.innerText = '播放'; }
     else { postCmd('play'); toggle.innerText = '暂停'; }
     playing = !playing;
   });
 
-  // 自动隐藏控制条（CSS :hover 已覆盖大部分场景）
-  let hideTimer = null;
-  function scheduleHide() {
-    if (hideTimer) clearTimeout(hideTimer);
-    hideTimer = setTimeout(()=> {
-      // only hide if not hovered
-      if (!container.matches(':hover')) {
-        document.getElementById('controls').classList.add('hidden');
-      }
-    }, 1200);
+  // 显示/隐藏逻辑（满足：鼠标停止 1s 隐藏；离开 1s 隐藏；移动显示）
+  let moveTimer = null;       // 用于检测鼠标停止 1s
+  let leaveTimer = null;      // 用于离开后 1s 隐藏
+  let controlsVisible = false;
+
+  function showControls() {
+    if (!controlsVisible) {
+      controls.classList.add('visible');
+      controlsVisible = true;
+    }
+    // reset timers
+    if (moveTimer) { clearTimeout(moveTimer); moveTimer = null; }
+    if (leaveTimer) { clearTimeout(leaveTimer); leaveTimer = null; }
+    // start moveTimer: if no movement for 1s, hide controls (even if still over controls)
+    moveTimer = setTimeout(() => {
+      hideControls();
+    }, 1000);
   }
-  // show on pointer enter, schedule hide on leave
-  container.addEventListener('pointerenter', ()=> {
-    document.getElementById('controls').classList.remove('hidden');
-    scheduleHide();
+
+  function hideControls() {
+    if (controlsVisible) {
+      controls.classList.remove('visible');
+      controlsVisible = false;
+    }
+    if (moveTimer) { clearTimeout(moveTimer); moveTimer = null; }
+    if (leaveTimer) { clearTimeout(leaveTimer); leaveTimer = null; }
+  }
+
+  // overlay 捕获 pointermove，显示 controls 并重置静止计时
+  overlay.addEventListener('pointermove', (e) => {
+    showControls();
   });
-  container.addEventListener('pointerleave', ()=> {
-    scheduleHide();
+
+  // pointerenter/pointerleave 用于离开延迟隐藏
+  overlay.addEventListener('pointerenter', (e) => {
+    showControls();
   });
-  // ensure controls visible initially
-  document.getElementById('controls').classList.remove('hidden');
-  scheduleHide();
+  overlay.addEventListener('pointerleave', (e) => {
+    // 当鼠标离开 overlay（进入 iframe 之外），延迟 1s 隐藏
+    if (leaveTimer) clearTimeout(leaveTimer);
+    leaveTimer = setTimeout(() => {
+      hideControls();
+    }, 1000);
+  });
+
+  // 触摸设备：触摸时显示 controls briefly
+  overlay.addEventListener('touchstart', (e) => {
+    showControls();
+  });
+
+  // 初始显示一次
+  showControls();
 
   // 自动在不可见时暂停（适合 Notion 中大量 embed 场景）
   const io = new IntersectionObserver(entries => {
@@ -334,6 +387,14 @@
   if (demoParam) {
     loadDemo(demoParam);
   }
+
+  // expose minimal debug API
+  window.__PlayerEmbed = {
+    load: loadDemo,
+    play: ()=> postCmd('play'),
+    pause: ()=> postCmd('pause'),
+    seekPercent: (p)=> postCmd('seekPercent', p)
+  };
 
 })();
 </script>
