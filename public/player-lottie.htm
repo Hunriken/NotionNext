@@ -84,6 +84,17 @@
     const params = new URLSearchParams(location.search)
     let file = params.get('file')
 
+    /* -------------------------
+       背景颜色参数（关键）
+    -------------------------- */
+    const bg = params.get('bg')
+    if (bg) {
+      document.documentElement.style.background = bg
+      document.body.style.background = bg
+      document.getElementById('container').style.background = bg
+      document.getElementById('lottie').style.background = bg   // ★ 关键补充
+    }
+
     const R2 = 'https://assets.haoping.me'
     if (file && !file.startsWith('http')) {
       file = `${R2}/${file}`
@@ -95,6 +106,20 @@
       loop: true,
       autoplay: true,
       path: file
+    })
+
+    /* -------------------------
+       清除 JSON 内部白色背景 path
+    -------------------------- */
+    anim.addEventListener('DOMLoaded', () => {
+      const svg = document.querySelector('#lottie svg')
+      if (!svg) return
+
+      // 清除所有纯白背景 path
+      svg.querySelectorAll('path[fill="rgb(255,255,255)"]').forEach(p => {
+        p.setAttribute('fill', 'transparent')
+        p.style.fill = 'transparent'
+      })
     })
 
     /* -------------------------
