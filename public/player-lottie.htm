@@ -111,23 +111,10 @@
 
     const anim = lottie.loadAnimation({
       container: document.getElementById('lottie'),
-      renderer: 'svg',
+      renderer: 'canvas',
       loop: true,
       autoplay: true,
       path: file
-    })
-
-    /* -------------------------
-       清除 JSON 内部白色背景 path
-    -------------------------- */
-    anim.addEventListener('DOMLoaded', () => {
-      const svg = document.querySelector('#lottie svg')
-      if (!svg) return
-
-      svg.querySelectorAll('path[fill="rgb(255,255,255)"]').forEach(p => {
-        p.setAttribute('fill', 'transparent')
-        p.style.fill = 'transparent'
-      })
     })
 
     /* -------------------------
