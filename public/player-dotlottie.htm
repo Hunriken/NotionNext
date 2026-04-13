@@ -1,86 +1,344 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>dotLottie Web Player</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>高级 Lottie Canvas 播放器（WASM 优先）</title>
+
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background: #000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      color: #fff;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    :root { --controls-height: 56px; }
+    html,body { height:100%; margin:0; background:transparent; }
+    #container {
+      position:relative;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:transparent;
     }
 
-    #canvas {
-      width: 480px;
-      height: 270px;
-      background: transparent;
-      display: block;
+    /* 渲染舞台（canvas 将被插入这里） */
+    #stage {
+      width:100%;
+      height:100%;
+      display:block;
+      position:relative;
+      background:transparent;
     }
 
+    /* 强制 canvas 填满容器 */
+    #stage canvas {
+      width:100% !important;
+      height:100% !important;
+      display:block;
+    }
+
+    /* 控制条 */
     #controls {
-      margin-top: 12px;
-      display: flex;
-      gap: 8px;
-      align-items: center;
+      position:absolute;
+      left:12px;
+      right:12px;
+      bottom:12px;
+      height:var(--controls-height);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:8px 12px;
+      background:rgba(0,0,0,0.35);
+      backdrop-filter: blur(8px);
+      border-radius:10px;
+      z-index:20;
+      transition:opacity .3s ease;
     }
-
-    button {
-      padding: 6px 12px;
-      border-radius: 4px;
-      border: none;
-      cursor: pointer;
-    }
+    #controls.hidden { opacity:0; pointer-events:none; }
+    #progress { flex:1; }
+    button { padding:6px 10px; border-radius:6px; border:none; background:rgba(255,255,255,0.95); cursor:pointer; }
   </style>
 </head>
 <body>
-  <canvas id="canvas" width="960" height="540"></canvas>
+  <div id="container">
+    <div id="stage" aria-hidden="true"></div>
 
-  <div id="controls">
-    <button id="play">播放</button>
-    <button id="pause">暂停</button>
+    <div id="controls">
+      <button id="toggle">暂停</button>
+      <input id="progress" type="range" min="0" max="100" value="0" />
+    </div>
   </div>
 
-  <script type="module">
-    import { DotLottie } from "https://cdn.jsdelivr.net/npm/@lottiefiles/dotlottie-web/+esm";
-
-    // 你可以用 ?file=xxx.json 这种方式传入
+  <script>
+  (async function () {
     const params = new URLSearchParams(location.search);
-    let src = params.get("file");
+    let file = params.get('file') || '';
+    const bg = params.get('bg') || null;
+    const ASSET_ROOT = 'https://assets.haoping.me'; // 可按需修改
 
-    // 如果是相对路径，可以在这里补全你的 CDN 前缀
-    const R2 = "https://assets.haoping.me";
-    if (src && !src.startsWith("http")) {
-      src = `${R2}/${src}`;
+    // 背景色支持短/长 hex
+    if (bg) {
+      let color = decodeURIComponent(bg);
+      if (/^[0-9a-fA-F]{3}$/.test(color)) color = '#' + color;
+      if (/^[0-9a-fA-F]{6}$/.test(color)) color = '#' + color;
+      document.documentElement.style.background = color;
+      document.body.style.background = color;
+      document.getElementById('container').style.background = color;
     }
 
-    const canvas = document.getElementById("canvas");
+    // 补全相对 file 路径
+    if (file && !file.startsWith('http') && !file.startsWith('/')) {
+      file = ASSET_ROOT.replace(/\/$/, '') + '/' + file.replace(/^\//, '');
+    }
 
-    const player = new DotLottie({
-      canvas,
-      src,              // 支持 .json 和 .lottie
-      autoplay: true,
-      loop: true,
-      renderConfig: {
-        autoResize: true,
-        devicePixelRatio: window.devicePixelRatio || 1,
-      },
-      layout: {
-        fit: "contain",
-        align: [0.5, 0.5],
-      },
+    const stage = document.getElementById('stage');
+    const controls = document.getElementById('controls');
+    const toggleBtn = document.getElementById('toggle');
+    const progress = document.getElementById('progress');
+
+    // UI 显示控制
+    let hideTimer = null;
+    function showControls() {
+      controls.classList.remove('hidden');
+      if (hideTimer) clearTimeout(hideTimer);
+      hideTimer = setTimeout(()=> controls.classList.add('hidden'), 1200);
+    }
+    document.addEventListener('mousemove', showControls);
+    showControls();
+
+    // IntersectionObserver 自动暂停/播放
+    let playerAPI = null;
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (!playerAPI) return;
+        if (e.isIntersecting) playerAPI.play();
+        else playerAPI.pause();
+      });
+    });
+    io.observe(document.getElementById('container'));
+
+    // 预处理 JSON：fetch -> 修正 assets.u 为绝对 URL -> 返回 JSON
+    async function fetchAndFixJson(url) {
+      const res = await fetch(url, {cache: 'no-store'});
+      if (!res.ok) throw new Error('无法获取 JSON: ' + res.status);
+      const json = await res.json();
+      const base = url.substring(0, url.lastIndexOf('/') + 1);
+      if (json.assets && Array.isArray(json.assets)) {
+        json.assets.forEach(a => {
+          if (a.u && a.p) {
+            // 如果 u 已经是绝对 URL，则保留；否则拼接 base
+            if (/^https?:\/\//i.test(a.u)) {
+              // 保留
+            } else {
+              a.u = base + a.u;
+            }
+          }
+        });
+      }
+      return json;
+    }
+
+    // 创建 canvas 并设置像素尺寸（DPR）
+    function createCanvasFill(parent) {
+      const canvas = document.createElement('canvas');
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.display = 'block';
+      parent.innerHTML = '';
+      parent.appendChild(canvas);
+
+      function resize() {
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(1, Math.floor(parent.clientWidth * dpr));
+        const h = Math.max(1, Math.floor(parent.clientHeight * dpr));
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+      resize();
+      const ro = new ResizeObserver(resize);
+      ro.observe(parent);
+      return { canvas, resize, ro };
+    }
+
+    // 尝试 dotlottie-web（WASM）优先方案
+    async function tryDotLottieWithFixedJson(jsonUrl) {
+      try {
+        // 动态 import ESM 版
+        const mod = await import('https://cdn.jsdelivr.net/npm/@lottiefiles/dotlottie-web/+esm');
+        const { DotLottie } = mod;
+
+        // 预处理 JSON 并生成 Blob URL（确保 images 的 u 是绝对 URL）
+        const json = await fetchAndFixJson(jsonUrl);
+        const blob = new Blob([JSON.stringify(json)], { type: 'application/json' });
+        const blobUrl = URL.createObjectURL(blob);
+
+        // 创建 canvas 并插入
+        const { canvas } = createCanvasFill(stage);
+
+        // 初始化 DotLottie，使用 canvas + animationData via blobUrl
+        const player = new DotLottie({
+          canvas,
+          src: blobUrl,            // 传入修正后的 JSON Blob URL
+          autoplay: true,
+          loop: true,
+          renderConfig: { autoResize: true, devicePixelRatio: window.devicePixelRatio || 1 },
+          layout: { fit: 'cover', align: [0.5, 0.5] } // cover 填满容器
+        });
+
+        // 等待 ready（部分实现会有事件）
+        // 提供统一 playerAPI
+        playerAPI = {
+          play: ()=> player.play(),
+          pause: ()=> player.pause(),
+          seek: (frame)=> player.seek(frame),
+          get totalFrames(){ return player.totalFrames || 0; },
+          get currentFrame(){ return player.currentFrame || 0; },
+          onFrame: (cb)=> player.on && player.on('frame', cb),
+          destroy: ()=> player.destroy && player.destroy()
+        };
+
+        // 小提示：如果图片仍然不显示，请检查图片服务器 CORS（Access-Control-Allow-Origin）
+        return true;
+      } catch (err) {
+        console.warn('dotlottie 加载失败，回退：', err);
+        return false;
+      }
+    }
+
+    // 回退：使用 lottie-web（canvas）并传入 animationData（修正后的 JSON）
+    async function useLottieWebWithFixedJson(jsonUrl) {
+      // 动态加载 lottie-web UMD（CDN）
+      if (typeof lottie === 'undefined') {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js';
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+
+      const json = await fetchAndFixJson(jsonUrl);
+
+      // 创建 canvas 容器（lottie-web 会在容器内插入 canvas）
+      stage.innerHTML = '';
+      const wrap = document.createElement('div');
+      wrap.style.width = '100%';
+      wrap.style.height = '100%';
+      wrap.style.position = 'relative';
+      stage.appendChild(wrap);
+
+      // 使用 animationData 直接加载（避免 path 导致的相对 images 问题）
+      const anim = lottie.loadAnimation({
+        container: wrap,
+        renderer: 'canvas',
+        loop: true,
+        autoplay: true,
+        animationData: json,
+        rendererSettings: {
+          clearCanvas: true,
+          preserveAspectRatio: 'xMidYMid slice' // slice -> cover 效果
+        }
+      });
+
+      // 强制 canvas 像素尺寸与 DPR
+      function fixCanvas() {
+        const cvs = wrap.querySelector('canvas');
+        if (!cvs) return;
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(1, Math.floor(wrap.clientWidth * dpr));
+        const h = Math.max(1, Math.floor(wrap.clientHeight * dpr));
+        if (cvs.width !== w || cvs.height !== h) {
+          cvs.width = w;
+          cvs.height = h;
+        }
+        cvs.style.width = '100%';
+        cvs.style.height = '100%';
+      }
+      fixCanvas();
+      const ro = new ResizeObserver(fixCanvas);
+      ro.observe(wrap);
+
+      playerAPI = {
+        play: ()=> anim.play(),
+        pause: ()=> anim.pause(),
+        seek: (frame)=> anim.goToAndStop(frame, true),
+        get totalFrames(){ return anim.totalFrames || 0; },
+        get currentFrame(){ return anim.currentFrame || 0; },
+        onFrame: (cb)=> anim.addEventListener('enterFrame', cb),
+        destroy: ()=> anim.destroy && anim.destroy()
+      };
+
+      return true;
+    }
+
+    // 主流程：优先 dotlottie（WASM），失败回退 lottie-web
+    let initialized = false;
+    if (file) {
+      // 先尝试 dotlottie
+      initialized = await tryDotLottieWithFixedJson(file);
+      if (!initialized) {
+        // 回退 lottie-web
+        initialized = await useLottieWebWithFixedJson(file);
+      }
+    } else {
+      // 没有 file，创建空 canvas
+      const { canvas } = createCanvasFill(stage);
+      // no-op playerAPI
+      playerAPI = {
+        play: ()=> {},
+        pause: ()=> {},
+        seek: ()=> {},
+        get totalFrames(){ return 0; },
+        get currentFrame(){ return 0; },
+        onFrame: ()=> {},
+        destroy: ()=> {}
+      };
+      initialized = true;
+    }
+
+    if (!initialized) {
+      stage.innerHTML = '<div style="color:#fff;padding:16px">播放器初始化失败，请检查控制台与资源 CORS。</div>';
+      return;
+    }
+
+    // 交互：播放/暂停/点击切换
+    let playing = true;
+    toggleBtn.addEventListener('click', ()=>{
+      if (!playerAPI) return;
+      if (playing) { playerAPI.pause(); toggleBtn.innerText = '播放'; }
+      else { playerAPI.play(); toggleBtn.innerText = '暂停'; }
+      playing = !playing;
     });
 
-    document.getElementById("play").onclick = () => player.play();
-    document.getElementById("pause").onclick = () => player.pause();
+    document.getElementById('container').addEventListener('click', (e)=>{
+      if (e.target.closest('#controls')) return;
+      if (!playerAPI) return;
+      if (playing) { playerAPI.pause(); toggleBtn.innerText = '播放'; }
+      else { playerAPI.play(); toggleBtn.innerText = '暂停'; }
+      playing = !playing;
+    });
+
+    // 进度条更新
+    if (playerAPI && playerAPI.onFrame) {
+      playerAPI.onFrame(()=> {
+        if (!playerAPI.totalFrames) return;
+        const percent = (playerAPI.currentFrame / playerAPI.totalFrames) * 100;
+        progress.value = percent;
+      });
+    }
+
+    progress.addEventListener('input', ()=>{
+      if (!playerAPI || !playerAPI.totalFrames) return;
+      const frame = (progress.value / 100) * playerAPI.totalFrames;
+      playerAPI.seek(frame);
+      playing = false;
+      toggleBtn.innerText = '播放';
+    });
+
+    console.log('播放器就绪（WASM 优先，Canvas 回退）。若位图仍未显示，请检查图片服务器 CORS 与 JSON 中 assets.u 是否为绝对 URL。');
+  })();
   </script>
 </body>
 </html>
