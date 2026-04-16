@@ -20,22 +20,6 @@
       box-sizing:border-box;
     }
 
-    /* ========== 最小化修改（消除上下白边） ========== */
-    /* 强制关键容器背景透明，优先级提高以覆盖外部样式 */
-    html, body, .wrap, .player-shell, #dplayer-container {
-      background: transparent !important;
-      background-color: transparent !important;
-    }
-    /* 确保内部 video 元素填满并使用 cover，避免出现背景条带 */
-    .dplayer-video, video {
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover !important;
-      background: #000 !important;
-      display: block !important;
-    }
-    /* ========== 结束最小化修改 ========== */
-
     .wrap{
       height:100%;
       width:100%;
@@ -65,12 +49,24 @@
       background:#000;
     }
 
+    /* ---------- 最小化修改：避免裁剪（关键） ---------- */
+    /* 1) 使用 contain 保持视频完整比例，不裁剪画面
+       2) 确保 video 背景为黑色，避免出现白色条带 */
+    .dplayer-video, video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: contain !important; /* ← 关键：contain 保持完整画面 */
+      background: #000 !important;
+      display: block !important;
+    }
+    /* ---------- 结束最小化修改 ---------- */
+
     /* 侧边播放列表：绝对定位覆盖在右侧，不影响播放器布局 */
     .playlist-panel{
       position:absolute;
       right:0;
-      width:224px;               /* 比之前减少约 30% */
-      top:10%;                   /* 上下内缩 10% */
+      width:224px;
+      top:10%;
       bottom:10%;
       box-sizing:border-box;
       padding:12px 10px;
@@ -82,14 +78,13 @@
       -webkit-backdrop-filter: blur(8px);
       color:#fff;
       border-left:1px solid rgba(255,255,255,0.04);
-      transform: translateX(100%); /* 初始隐藏（从右侧进入） */
+      transform: translateX(100%);
       opacity:0;
       pointer-events:none;
       transition: transform 320ms cubic-bezier(.2,.9,.2,1), opacity 260ms ease;
       z-index: 6;
     }
 
-    /* visible 时从右向左滑入 */
     .playlist-panel.visible{
       transform: translateX(0);
       opacity:1;
@@ -104,7 +99,6 @@
       display:flex;align-items:center;gap:8px;font-size:14px;line-height:1.2;
     }
     .video-item:hover{background: rgba(255,255,255,0.04);transform: translateX(4px)}
-    /* 激活项：标题为黑色，背景变浅；去掉“当前视频”显示 */
     .video-item.active{
       background: rgba(255,255,255,0.92);
       color: #000;
@@ -113,7 +107,6 @@
     .video-item .title{color:inherit;flex:1}
     .empty{padding:14px;color:rgba(255,255,255,0.7);text-align:center}
 
-    /* 小屏适配：列表覆盖在播放器上方右侧 */
     @media (max-width:900px){
       .playlist-panel{width:86%;max-width:360px;right:12px;top:8%;bottom:8%}
     }
@@ -165,7 +158,7 @@
       bottom: 0;
       width: 10%;
       background: transparent;
-      z-index: 5; /* 小于 playlist (6) 但高于视频内容 */
+      z-index: 5;
       pointer-events: auto;
     }
   </style>
