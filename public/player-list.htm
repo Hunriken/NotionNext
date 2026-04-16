@@ -3,32 +3,32 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NotionNext 播放器</title>
+  <title>播放器 - 单列表</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.css" />
   <style>
-    html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif}
-    .wrap{display:flex;height:100vh}
-    .player-area{flex:1;display:flex;align-items:center;justify-content:center;background:#000}
-    #dplayer-container{width:100%;max-width:1100px;height:100%}
-    .sidebar{width:320px;background:#fafafa;border-left:1px solid #e6e6e6;overflow:auto}
-    .sidebar h3{margin:12px;font-size:16px}
-    .playlists,.list{padding:8px}
-    .pl-item,.video-item{padding:10px;border-bottom:1px solid #eee;cursor:pointer}
-    .pl-item:hover,.video-item:hover{background:#eef6ff}
-    .active{background:#dbeeff;font-weight:600}
-    .empty{padding:12px;color:#666}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f7f8fb;color:#111}
+    .container{max-width:1100px;margin:20px auto;padding:12px}
+    .player-wrap{background:#000;padding:8px;border-radius:6px}
+    #dplayer-container{width:100%;height:560px;max-height:70vh}
+    .video-list{margin-top:12px;background:#fff;border-radius:6px;padding:8px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+    .video-item{padding:10px;border-bottom:1px solid #eee;cursor:pointer}
+    .video-item:last-child{border-bottom:0}
+    .video-item:hover{background:#f0f8ff}
+    .video-item.active{background:#e6f3ff;font-weight:600}
+    .current-title{margin-top:8px;font-size:16px;color:#222}
+    .empty{padding:16px;color:#666;text-align:center}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="player-area">
+  <div class="container">
+    <div class="player-wrap">
       <div id="dplayer-container"></div>
     </div>
-    <div class="sidebar">
-      <h3>播放列表</h3>
-      <div class="playlists" id="playlists"></div>
-      <h3>视频</h3>
-      <div class="list" id="list"></div>
+
+    <div class="current-title" id="currentTitle">当前视频：无</div>
+
+    <div class="video-list" id="videoList">
+      <div class="empty">正在加载视频列表…</div>
     </div>
   </div>
 
@@ -36,10 +36,11 @@
   <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
 
   <script>
+    // 解析 query 参数
     const params = new URLSearchParams(location.search);
-    const initialPlaylist = params.get('playlist') || null;
+    const playlistName = params.get('playlist') || '';
 
-    // 初始化 DPlayer（先占位）
+    // 初始化 DPlayer（占位）
     const dp = new DPlayer({
       container: document.getElementById('dplayer-container'),
       video: { url: '' },
@@ -50,6 +51,7 @@
     let currentIndex = -1;
     window._currentHls = null;
 
+    // 使用全局 fetch 调用后端
     async function fetchJson(url) {
       const res = await fetch(url);
       if (!res.ok) throw new Error(await res.text());
@@ -66,80 +68,49 @@
       return json.url;
     }
 
-    function createElem(className, text) {
+    function createVideoItemEl(name, idx) {
       const el = document.createElement('div');
-      el.className = className;
-      el.textContent = text;
+      el.className = 'video-item';
+      el.dataset.index = idx;
+      el.textContent = name || ('视频 ' + (idx + 1));
+      el.addEventListener('click', () => playVideoByIndex(idx));
       return el;
     }
 
-    async function loadPlaylists() {
+    async function loadVideosForPlaylist(playlist) {
       try {
-        const data = await fetchJson('/api/playlists');
-        const container = document.getElementById('playlists');
-        container.innerHTML = '';
-        if (!data.playlists || !data.playlists.length) {
-          container.appendChild(createElem('empty','没有播放列表'));
-          return;
-        }
-        data.playlists.forEach(p => {
-          const el = createElem('pl-item', p.name);
-          el.addEventListener('click', () => {
-            // 更新 URL（不刷新页面）
-            const u = new URL(location);
-            u.searchParams.set('playlist', p.name);
-            history.replaceState({}, '', u);
-            loadVideos(p.name);
-            document.querySelectorAll('.pl-item').forEach(x => x.classList.remove('active'));
-            el.classList.add('active');
-          });
-          container.appendChild(el);
-          if (initialPlaylist && p.name === initialPlaylist) {
-            el.classList.add('active');
-          }
-        });
-      } catch (e) {
-        console.error(e);
-        document.getElementById('playlists').innerHTML = '<div class="empty">加载播放列表失败</div>';
-      }
-    }
-
-    async function loadVideos(playlistName) {
-      try {
-        const url = playlistName ? `/api/videos?playlist=${encodeURIComponent(playlistName)}` : '/api/videos';
+        const url = playlist ? `/api/videos?playlist=${encodeURIComponent(playlist)}` : '/api/videos';
         const data = await fetchJson(url);
         videos = data.videos || [];
-        const list = document.getElementById('list');
+        const list = document.getElementById('videoList');
         list.innerHTML = '';
         if (!videos.length) {
-          list.appendChild(createElem('empty','该播放列表没有视频'));
+          list.innerHTML = '<div class="empty">该播放列表没有视频</div>';
+          document.getElementById('currentTitle').textContent = '当前视频：无';
           return;
         }
         videos.forEach((v, i) => {
-          const el = createElem('video-item', v.name || v.file || ('视频 ' + (i+1)));
-          el.dataset.index = i;
-          el.addEventListener('click', () => playVideoByIndex(i));
+          const el = createVideoItemEl(v.name || v.file || ('视频 ' + (i+1)), i);
           list.appendChild(el);
         });
 
-        // 自动播放第一个（如果 URL 中指定了 playlist 并且当前没有播放）
-        if (videos.length && currentIndex === -1) {
-          playVideoByIndex(0);
-          const first = document.querySelector('.video-item[data-index="0"]');
-          if (first) first.classList.add('active');
-        }
-      } catch (e) {
-        console.error(e);
-        document.getElementById('list').innerHTML = '<div class="empty">加载视频失败</div>';
+        // 自动播放第一个视频
+        playVideoByIndex(0);
+      } catch (err) {
+        console.error(err);
+        document.getElementById('videoList').innerHTML = '<div class="empty">加载视频失败</div>';
+        document.getElementById('currentTitle').textContent = '当前视频：无';
       }
     }
 
     async function playVideoByIndex(idx) {
       if (idx === currentIndex) return;
       currentIndex = idx;
+
+      // 高亮
       document.querySelectorAll('.video-item').forEach(el => el.classList.remove('active'));
-      const active = document.querySelector(`.video-item[data-index="${idx}"]`);
-      if (active) active.classList.add('active');
+      const activeEl = document.querySelector(`.video-item[data-index="${idx}"]`);
+      if (activeEl) activeEl.classList.add('active');
 
       const file = videos[idx].file;
       let playable;
@@ -151,6 +122,10 @@
         return;
       }
       if (!playable) { alert('播放地址为空'); return; }
+
+      // 更新当前标题
+      const titleText = videos[idx].name || file || ('视频 ' + (idx+1));
+      document.getElementById('currentTitle').textContent = '当前视频：' + titleText;
 
       // 切换 DPlayer 源
       try {
@@ -165,7 +140,7 @@
         }
       }
 
-      // HLS 处理
+      // HLS 处理（如果是 .m3u8）
       if (playable.endsWith('.m3u8') && window.Hls && Hls.isSupported()) {
         if (window._currentHls) { try { window._currentHls.destroy(); } catch(e){} window._currentHls = null; }
         const videoEl = dp.video && dp.video.video;
@@ -179,20 +154,10 @@
       }
     }
 
-    // 自动初始化
+    // 初始化加载
     (async () => {
-      await loadPlaylists();
-      const target = initialPlaylist || (document.querySelector('.pl-item') && document.querySelector('.pl-item').textContent);
-      if (target) {
-        // 高亮对应 playlist 并加载视频
-        document.querySelectorAll('.pl-item').forEach(el => { if (el.textContent === target) el.classList.add('active'); });
-        await loadVideos(target);
-      } else {
-        // 没有 playlist 参数，加载全部视频（或提示选择）
-        await loadVideos();
-      }
-
-      // 当视频播放结束自动播放下一个
+      await loadVideosForPlaylist(playlistName);
+      // 当视频结束自动播放下一个（同列表内）
       dp.on('ended', () => {
         const next = currentIndex + 1;
         if (next < videos.length) playVideoByIndex(next);
