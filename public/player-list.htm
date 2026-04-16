@@ -370,54 +370,77 @@
       updateNextButtonState();
     }
 
-    // 播放指定索引（点击时才请求签名）
-    async function playVideoByIndex(idx) {
-      if (idx === currentIndex) return;
-      currentIndex = idx;
+// 播放指定索引（点击时才请求签名），播放立即开始
+async function playVideoByIndex(idx) {
+  if (idx === currentIndex) return;
+  currentIndex = idx;
 
-      document.querySelectorAll('.video-item').forEach(el => el.classList.remove('active'));
-      const activeEl = document.querySelector(`.video-item[data-index="${idx}"]`);
-      if (activeEl) activeEl.classList.add('active');
+  document.querySelectorAll('.video-item').forEach(el => el.classList.remove('active'));
+  const activeEl = document.querySelector(`.video-item[data-index="${idx}"]`);
+  if (activeEl) activeEl.classList.add('active');
 
-      const file = videos[idx].file;
-      let playable;
-      try {
-        playable = await resolvePlayableUrl(file);
-      } catch (e) {
-        console.error(e);
-        alert('获取播放地址失败');
-        return;
-      }
-      if (!playable) { alert('播放地址为空'); return; }
+  const file = videos[idx].file;
+  let playable;
+  try {
+    playable = await resolvePlayableUrl(file);
+  } catch (e) {
+    console.error(e);
+    alert('获取播放地址失败');
+    return;
+  }
+  if (!playable) { alert('播放地址为空'); return; }
 
-      try {
-        dp.switchVideo({ url: playable, type: 'auto' });
-        const videoEl = dp.video && dp.video.video;
-        if (videoEl) videoEl.play().catch(()=>{});
-      } catch (e) {
-        const videoEl = dp.video && dp.video.video;
-        if (videoEl) {
-          videoEl.src = playable;
-          videoEl.load();
-          videoEl.play().catch(()=>{});
-        }
-      }
-
-      // HLS 处理
-      if (playable.endsWith('.m3u8') && window.Hls && Hls.isSupported()) {
-        if (window._currentHls) { try { window._currentHls.destroy(); } catch(e){} window._currentHls = null; }
-        const videoEl = dp.video && dp.video.video;
-        if (videoEl) {
-          window._currentHls = new Hls();
-          window._currentHls.loadSource(playable);
-          window._currentHls.attachMedia(videoEl);
-        }
-      } else {
-        if (window._currentHls) { try { window._currentHls.destroy(); } catch(e){} window._currentHls = null; }
-      }
-
-      updateNextButtonState();
+  try {
+    // 切换视频（DPlayer 内部可能会异步处理）
+    dp.switchVideo({ url: playable, type: 'auto' });
+    // 尝试立即播放（若 DPlayer 已准备好）
+    const videoEl = dp.video && dp.video.video;
+    if (videoEl) {
+      videoEl.play().catch(()=>{});
+      // 兼容 DPlayer 切换延迟，短延迟再尝试一次播放
+      setTimeout(() => {
+        try { videoEl.play().catch(()=>{}); } catch(e){}
+      }, 250);
     }
+  } catch (e) {
+    // 回退：直接设置 src 并播放
+    const videoEl = dp.video && dp.video.video;
+    if (videoEl) {
+      videoEl.src = playable;
+      videoEl.load();
+      videoEl.play().catch(()=>{});
+    }
+  }
+
+  // HLS 处理：在 attach 完成后确保播放
+  if (playable.endsWith('.m3u8') && window.Hls && Hls.isSupported()) {
+    if (window._currentHls) { try { window._currentHls.destroy(); } catch(e){} window._currentHls = null; }
+    const videoEl = dp.video && dp.video.video;
+    if (videoEl) {
+      window._currentHls = new Hls();
+      window._currentHls.loadSource(playable);
+      window._currentHls.attachMedia(videoEl);
+      // 在 media 可播放时触发播放（一次性）
+      const onCanPlay = () => {
+        try { videoEl.play().catch(()=>{}); } catch(e){}
+        videoEl.removeEventListener('canplay', onCanPlay);
+      };
+      videoEl.addEventListener('canplay', onCanPlay, { once: true });
+      // 额外监听 Hls 的 manifest 事件（若可用），以防某些浏览器需要更早的信号
+      try {
+        window._currentHls.on && window._currentHls.on(Hls.Events.MANIFEST_PARSED, () => {
+          try { videoEl.play().catch(()=>{}); } catch(e){}
+        });
+      } catch (e) { /* ignore */ }
+    }
+  } else {
+    // 非 HLS 时销毁可能残留的 Hls 实例
+    if (window._currentHls) { try { window._currentHls.destroy(); } catch(e){} window._currentHls = null; }
+  }
+
+  updateNextButtonState();
+}
+
 
     // 注入“下一曲”按钮到 DPlayer 控制条（播放按钮右侧）
     function injectNextButton() {
