@@ -1,6 +1,6 @@
 // pages/api/videos.js
 // 使用全局 fetch（Next.js / Vercel 环境已提供）
-// 兼容 play_lists / paly_lists 字段名，先尝试 select equals，再尝试 multi_select contains
+// 行为变更：当没有 playlist 参数时返回空数组（不返回全部视频）
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_VIDEOS_DB_ID = process.env.NOTION_VIDEOS_DB_ID;
@@ -10,7 +10,17 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server not configured: missing NOTION_TOKEN or NOTION_VIDEOS_DB_ID' });
   }
 
-  const { playlist, page_size = 100 } = req.query;
+  // 注意：如果 playlist 参数不存在或为空字符串，直接返回空列表（按你的新需求）
+  const rawPlaylist = req.query.playlist;
+  const playlist = rawPlaylist ? String(rawPlaylist).trim() : '';
+
+  // 如果没有 playlist 参数，返回空数组（不查询 Notion）
+  if (!playlist) {
+    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
+    return res.status(200).json({ videos: [] });
+  }
+
+  const { page_size = 100 } = req.query;
   const notionUrl = `https://api.notion.com/v1/databases/${NOTION_VIDEOS_DB_ID}/query`;
   const headers = {
     'Authorization': `Bearer ${NOTION_TOKEN}`,
@@ -31,41 +41,34 @@ export default async function handler(req, res) {
       return r.json();
     }
 
-    if (playlist) {
-      const trimmed = String(playlist).trim();
+    // Try multiple property names and filter strategies to maximize compatibility
+    const propertyNames = ['play_lists', 'paly_lists'];
 
-      // Try both possible property names and both select/multi_select strategies
-      const propertyNames = ['play_lists', 'paly_lists'];
+    for (const propName of propertyNames) {
+      // 1) try select equals
+      let body = { page_size: Number(page_size), filter: { property: propName, select: { equals: playlist } } };
+      data = await queryNotion(body);
+      if ((data.results || []).length > 0) break;
 
-      for (const propName of propertyNames) {
-        // 1) try select equals
-        let body = { page_size: Number(page_size), filter: { property: propName, select: { equals: trimmed } } };
-        data = await queryNotion(body);
-        if ((data.results || []).length > 0) break;
+      // 2) try multi_select contains
+      body = { page_size: Number(page_size), filter: { property: propName, multi_select: { contains: playlist } } };
+      data = await queryNotion(body);
+      if ((data.results || []).length > 0) break;
 
-        // 2) try multi_select contains
-        body = { page_size: Number(page_size), filter: { property: propName, multi_select: { contains: trimmed } } };
-        data = await queryNotion(body);
-        if ((data.results || []).length > 0) break;
-
-        // 3) try rich_text contains (fallback)
-        body = {
-          page_size: Number(page_size),
-          filter: {
-            property: propName,
-            rich_text: { contains: trimmed }
-          }
-        };
-        data = await queryNotion(body);
-        if ((data.results || []).length > 0) break;
-      }
-
-      // If still no results, set data to empty structure
-      if (!data) data = { results: [] };
-    } else {
-      // No playlist param: return all (first page)
-      data = await queryNotion({ page_size: Number(page_size) });
+      // 3) try rich_text contains (fallback)
+      body = {
+        page_size: Number(page_size),
+        filter: {
+          property: propName,
+          rich_text: { contains: playlist }
+        }
+      };
+      data = await queryNotion(body);
+      if ((data.results || []).length > 0) break;
     }
+
+    // If still no results, set data to empty structure
+    if (!data) data = { results: [] };
 
     // Parse results into videos array
     const videos = (data.results || []).map(page => {
