@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>播放器 - 完整版（响应式、节约加载、侧栏、下一曲）</title>
+  <title>播放器 - 精简版（响应式、节约加载、侧栏、下一曲）</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.css" />
   <style>
     /* 页面与容器：透明背景，填满父容器（嵌入 Notion 时避免白边） */
@@ -53,9 +53,9 @@
     .playlist-panel{
       position:absolute;
       right:0;
-      width:224px;               /* 比之前减少约 30% */
+      width:224px;               /* 宽度减少约 30% */
       top:10%;                   /* 上下内缩 10% */
-      bottom:10%;
+      bottom:20%;
       box-sizing:border-box;
       padding:12px 10px;
       display:flex;
@@ -105,31 +105,30 @@
     .video-list::-webkit-scrollbar{width:8px}
     .video-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:6px}
 
-    /* Next 按钮样式（与 DPlayer 控件风格一致） */
+    /* Next 按钮样式（与 DPlayer 控件风格一致） - 最小修改以修正对齐 */
     .dplayer-next-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  vertical-align: middle;
-  box-sizing: border-box;
-  width: 36px;
-  height: 36px;
-  margin-left: 8px;
-  padding: 0;
-  border-radius: 4px;
-  background: rgba(0,0,0,0.35);
-  color: #fff;
-  cursor: pointer;
-  transition: background 160ms ease, transform 120ms ease;
-  border: none;
-  outline: none;
-  line-height: 1;
-  /* 不要把字体大小设为 0，会影响 icon font */
-  font-size: 16px;
-}
-.dplayer-next-btn:hover { background: rgba(255,255,255,0.06); transform: translateY(-1px); }
-.dplayer-next-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-.dplayer-next-btn svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      vertical-align:middle;
+      box-sizing:border-box;
+      width:36px;
+      height:36px;
+      margin-left:8px;
+      padding:0;
+      border-radius:4px;
+      background: rgba(0,0,0,0.35);
+      color:#fff;
+      cursor:pointer;
+      transition: background 160ms ease, transform 120ms ease;
+      border: none;
+      outline: none;
+      line-height:1;
+      font-size:14px; /* 保持图标字体正常显示，避免影响其他控件 */
+    }
+    .dplayer-next-btn:hover { background: rgba(255,255,255,0.06); transform: translateY(-1px); }
+    .dplayer-next-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+    .dplayer-next-btn svg { width:18px; height:18px; fill:currentColor; display:block; }
   </style>
 </head>
 <body>
@@ -171,7 +170,7 @@
     const videoListEl = document.getElementById('videoList');
     const dplayerContainer = document.getElementById('dplayer-container');
 
-    // 显示/隐藏逻辑
+    // 显示/隐藏逻辑（仅基于 hover，不响应点击）
     let hideTimer = null;
     const IDLE_HIDE_MS = 1000;
     let lastHiddenByIdle = false;
@@ -188,15 +187,6 @@
       playlistPanel.classList.remove('visible');
       playlistPanel.setAttribute('aria-hidden', 'true');
       if (byIdle) lastHiddenByIdle = true;
-    }
-
-    function scheduleHideAfterIdle() {
-      if (hideTimer) clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => {
-        if (!isPointerOverElement(playlistPanel)) {
-          hidePlaylistImmediate(true);
-        }
-      }, IDLE_HIDE_MS);
     }
 
     function isPointerOverElement(el) {
@@ -267,12 +257,7 @@
     dplayerContainer.addEventListener('mousemove', onVideoMouseMove);
     dplayerContainer.addEventListener('mouseleave', onVideoMouseLeave);
 
-    // 点击播放器空白区域短暂显示（不在进度条上）
-    dplayerContainer.addEventListener('click', (e) => {
-      if (progressEl && isEventOverElement(e, progressEl)) return;
-      showPlaylist();
-      scheduleHideAfterIdle();
-    });
+    // 注意：已移除“点击播放器空白区域显示侧栏”的逻辑（按要求：鼠标点击不触发列表弹出）
 
     // 网络与播放辅助
     async function fetchJson(url) {
@@ -290,7 +275,7 @@
       return json.url;
     }
 
-    // 列表项：无按钮，点击条目播放
+    // 列表项：无按钮，点击条目立即播放（无需额外点击）
     function createVideoItemEl(name, idx) {
       const el = document.createElement('div');
       el.className = 'video-item';
@@ -301,7 +286,11 @@
       title.textContent = name || ('视频 ' + (idx + 1));
       el.appendChild(title);
 
-      el.addEventListener('click', () => playVideoByIndex(idx));
+      // 点击立即播放（并保持列表状态不受点击影响）
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playVideoByIndex(idx);
+      });
       return el;
     }
 
@@ -339,7 +328,7 @@
       updateNextButtonState();
     }
 
-    // 播放指定索引（点击时才请求签名）
+    // 播放指定索引（点击时才请求签名），播放立即开始
     async function playVideoByIndex(idx) {
       if (idx === currentIndex) return;
       currentIndex = idx;
@@ -396,7 +385,6 @@
 
         // 找到播放按钮容器
         const playWrap = controller.querySelector('.dplayer-play') || controller.querySelector('.dplayer-play-icon') || null;
-        const insertTarget = playWrap && playWrap.parentNode ? playWrap.parentNode : controller;
 
         if (controller.querySelector('.dplayer-next-btn')) return true; // 已注入
 
@@ -412,6 +400,7 @@
           controller.appendChild(nextBtn);
         }
 
+        // 点击下一曲立即播放下一条
         nextBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           playNext();
@@ -447,7 +436,6 @@
 
     // 初始化：查找 progress 元素并注入 next 按钮，加载列表
     (async () => {
-      // 注入 next 按钮（会轮询直到控制条渲染）
       injectNextButton();
 
       // 轮询查找 progress 元素（用于避免在进度条 hover 时触发显示）
@@ -456,6 +444,7 @@
           clearInterval(progressInterval);
         }
       }, 200);
+
       // 加载播放列表（只预加载第一个）
       await loadVideosForPlaylist(playlistName);
 
@@ -464,9 +453,6 @@
         const next = currentIndex + 1;
         if (next < videos.length) playVideoByIndex(next);
       });
-
-      // 确保在窗口 resize 时仍能正确计算右侧 10% 区域
-      window.addEventListener('resize', () => { /* no-op, calculations use getBoundingClientRect on each event */ });
     })();
   </script>
 </body>
