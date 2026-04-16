@@ -1,16 +1,16 @@
 // pages/api/playlists.js
-import fetch from 'node-fetch';
+// 使用全局 fetch（Next.js / Vercel 环境已提供），不要引入 node-fetch
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_VIDEOS_DB_ID = process.env.NOTION_VIDEOS_DB_ID;
 
 export default async function handler(req, res) {
   if (!NOTION_TOKEN || !NOTION_VIDEOS_DB_ID) {
-    return res.status(500).json({ error: 'Server not configured' });
+    return res.status(500).json({ error: 'Server not configured: missing NOTION_TOKEN or NOTION_VIDEOS_DB_ID' });
   }
 
   try {
-    // 查询数据库，取 page_size 较大以获取所有条目（可按需调整或改为聚合）
+    // 查询数据库（一次性取较多条目，若条目很多建议改为分页）
     const notionRes = await fetch(`https://api.notion.com/v1/databases/${NOTION_VIDEOS_DB_ID}/query`, {
       method: 'POST',
       headers: {
@@ -30,21 +30,34 @@ export default async function handler(req, res) {
 
     // 从每条记录中收集 paly_lists 的 select 值（去重）
     const set = new Set();
-    data.results.forEach(page => {
-      const sel = page.properties?.paly_lists;
-      if (sel && sel.select && sel.select.name) {
-        set.add(sel.select.name);
-      } else if (sel && sel.multi_select && Array.isArray(sel.multi_select)) {
-        sel.multi_select.forEach(s => s.name && set.add(s.name));
+    (data.results || []).forEach(page => {
+      const prop = page.properties?.paly_lists;
+      if (!prop) return;
+
+      // 处理 Select 类型
+      if (prop.select && prop.select.name) {
+        set.add(prop.select.name);
+      }
+
+      // 处理 Multi-select 类型
+      if (Array.isArray(prop.multi_select)) {
+        prop.multi_select.forEach(s => s?.name && set.add(s.name));
+      }
+
+      // 兼容：有时字段以 rich_text 存储（不常见）
+      if (Array.isArray(prop.rich_text) && prop.rich_text.length) {
+        const txt = prop.rich_text.map(t => t.plain_text).join('').trim();
+        if (txt) set.add(txt);
       }
     });
 
     const playlists = Array.from(set).map(name => ({ name }));
 
+    // 缓存头：Vercel edge cache / ISR 风格
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
     return res.status(200).json({ playlists });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'server error', detail: err.message });
+    console.error('playlists api error:', err);
+    return res.status(500).json({ error: 'server error', detail: err?.message || String(err) });
   }
 }
