@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NotionNext 播放器</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.css" />
+  <style>
+    html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif}
+    .wrap{display:flex;height:100vh}
+    .player-area{flex:1;display:flex;align-items:center;justify-content:center;background:#000}
+    #dplayer-container{width:100%;max-width:1100px;height:100%}
+    .sidebar{width:320px;background:#fafafa;border-left:1px solid #e6e6e6;overflow:auto}
+    .sidebar h3{margin:12px;font-size:16px}
+    .playlists,.list{padding:8px}
+    .pl-item,.video-item{padding:10px;border-bottom:1px solid #eee;cursor:pointer}
+    .pl-item:hover,.video-item:hover{background:#eef6ff}
+    .active{background:#dbeeff;font-weight:600}
+    .empty{padding:12px;color:#666}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="player-area">
+      <div id="dplayer-container"></div>
+    </div>
+    <div class="sidebar">
+      <h3>播放列表</h3>
+      <div class="playlists" id="playlists"></div>
+      <h3>视频</h3>
+      <div class="list" id="list"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const initialPlaylist = params.get('playlist') || null;
+
+    // 初始化 DPlayer（先占位）
+    const dp = new DPlayer({
+      container: document.getElementById('dplayer-container'),
+      video: { url: '' },
+      autoplay: false
+    });
+
+    let videos = [];
+    let currentIndex = -1;
+    window._currentHls = null;
+
+    async function fetchJson(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    // 解析数据库字段：如果是完整 URL 直接返回，否则请求签名
+    async function resolvePlayableUrl(fileOrUrl) {
+      if (!fileOrUrl) return null;
+      if (/^https?:\/\//i.test(fileOrUrl)) return fileOrUrl;
+      const res = await fetch(`/api/video-url?file=${encodeURIComponent(fileOrUrl)}`);
+      if (!res.ok) throw new Error('获取签名 URL 失败');
+      const json = await res.json();
+      return json.url;
+    }
+
+    function createElem(className, text) {
+      const el = document.createElement('div');
+      el.className = className;
+      el.textContent = text;
+      return el;
+    }
+
+    async function loadPlaylists() {
+      try {
+        const data = await fetchJson('/api/playlists');
+        const container = document.getElementById('playlists');
+        container.innerHTML = '';
+        if (!data.playlists || !data.playlists.length) {
+          container.appendChild(createElem('empty','没有播放列表'));
+          return;
+        }
+        data.playlists.forEach(p => {
+          const el = createElem('pl-item', p.name);
+          el.addEventListener('click', () => {
+            // 更新 URL（不刷新页面）
+            const u = new URL(location);
+            u.searchParams.set('playlist', p.name);
+            history.replaceState({}, '', u);
+            loadVideos(p.name);
+            document.querySelectorAll('.pl-item').forEach(x => x.classList.remove('active'));
+            el.classList.add('active');
+          });
+          container.appendChild(el);
+          if (initialPlaylist && p.name === initialPlaylist) {
+            el.classList.add('active');
+          }
+        });
+      } catch (e) {
+        console.error(e);
+        document.getElementById('playlists').innerHTML = '<div class="empty">加载播放列表失败</div>';
+      }
+    }
+
+    async function loadVideos(playlistName) {
+      try {
+        const url = playlistName ? `/api/videos?playlist=${encodeURIComponent(playlistName)}` : '/api/videos';
+        const data = await fetchJson(url);
+        videos = data.videos || [];
+        const list = document.getElementById('list');
+        list.innerHTML = '';
+        if (!videos.length) {
+          list.appendChild(createElem('empty','该播放列表没有视频'));
+          return;
+        }
+        videos.forEach((v, i) => {
+          const el = createElem('video-item', v.name || v.file || ('视频 ' + (i+1)));
+          el.dataset.index = i;
+          el.addEventListener('click', () => playVideoByIndex(i));
+          list.appendChild(el);
+        });
+
+        // 自动播放第一个（如果 URL 中指定了 playlist 并且当前没有播放）
+        if (videos.length && currentIndex === -1) {
+          playVideoByIndex(0);
+          const first = document.querySelector('.video-item[data-index="0"]');
+          if (first) first.classList.add('active');
+        }
+      } catch (e) {
+        console.error(e);
+        document.getElementById('list').innerHTML = '<div class="empty">加载视频失败</div>';
+      }
+    }
+
+    async function playVideoByIndex(idx) {
+      if (idx === currentIndex) return;
+      currentIndex = idx;
+      document.querySelectorAll('.video-item').forEach(el => el.classList.remove('active'));
+      const active = document.querySelector(`.video-item[data-index="${idx}"]`);
+      if (active) active.classList.add('active');
+
+      const file = videos[idx].file;
+      let playable;
+      try {
+        playable = await resolvePlayableUrl(file);
+      } catch (e) {
+        console.error(e);
+        alert('获取播放地址失败');
+        return;
+      }
+      if (!playable) { alert('播放地址为空'); return; }
+
+      // 切换 DPlayer 源
+      try {
+        dp.switchVideo({ url: playable, type: 'auto' });
+      } catch (e) {
+        // 兜底：直接替换 video 元素 src
+        const videoEl = dp.video && dp.video.video;
+        if (videoEl) {
+          videoEl.src = playable;
+          videoEl.load();
+          videoEl.play().catch(()=>{});
+        }
+      }
+
+      // HLS 处理
+      if (playable.endsWith('.m3u8') && window.Hls && Hls.isSupported()) {
+        if (window._currentHls) { try { window._currentHls.destroy(); } catch(e){} window._currentHls = null; }
+        const videoEl = dp.video && dp.video.video;
+        if (videoEl) {
+          window._currentHls = new Hls();
+          window._currentHls.loadSource(playable);
+          window._currentHls.attachMedia(videoEl);
+        }
+      } else {
+        if (window._currentHls) { try { window._currentHls.destroy(); } catch(e){} window._currentHls = null; }
+      }
+    }
+
+    // 自动初始化
+    (async () => {
+      await loadPlaylists();
+      const target = initialPlaylist || (document.querySelector('.pl-item') && document.querySelector('.pl-item').textContent);
+      if (target) {
+        // 高亮对应 playlist 并加载视频
+        document.querySelectorAll('.pl-item').forEach(el => { if (el.textContent === target) el.classList.add('active'); });
+        await loadVideos(target);
+      } else {
+        // 没有 playlist 参数，加载全部视频（或提示选择）
+        await loadVideos();
+      }
+
+      // 当视频播放结束自动播放下一个
+      dp.on('ended', () => {
+        const next = currentIndex + 1;
+        if (next < videos.length) playVideoByIndex(next);
+      });
+    })();
+  </script>
+</body>
+</html>
