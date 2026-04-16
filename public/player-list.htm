@@ -2,22 +2,59 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>播放器 - 单列表（节约资源 + 下一曲按钮）</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>播放器 - 完整版（响应式、节约加载、侧栏、下一曲）</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.css" />
   <style>
-    html,body{height:100%;margin:0;background:transparent;font-family:Arial,Helvetica,sans-serif;color:#fff}
-    .wrap{width:100%;max-width:1200px;margin:0 auto;padding:12px;box-sizing:border-box}
-    .player-shell{position:relative;background:#000;border-radius:8px;overflow:hidden}
-    /* DPlayer 占满宽度，进度条填满整个宽度 */
-    #dplayer-container{width:100%;height:64vh;min-height:360px;background:#000;position:relative;z-index:1}
+    /* 页面与容器：透明背景，填满父容器（嵌入 Notion 时避免白边） */
+    html,body{
+      height:100%;
+      width:100%;
+      margin:0;
+      padding:0;
+      background:transparent;
+      font-family: Arial, Helvetica, sans-serif;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      color:#fff;
+      box-sizing:border-box;
+    }
 
-    /* 侧边播放列表：绝对定位覆盖在播放器右侧，不占用 dplayer 宽度 */
+    .wrap{
+      height:100%;
+      width:100%;
+      display:flex;
+      align-items:stretch;
+      justify-content:stretch;
+      padding:0;
+      margin:0;
+    }
+
+    /* 播放器外壳：填满父容器，不限制尺寸 */
+    .player-shell{
+      position:relative;
+      width:100%;
+      height:100%;
+      background:#000;
+      overflow:hidden;
+      border-radius:0;
+    }
+
+    /* DPlayer 容器：完全填充外壳 */
+    #dplayer-container{
+      position:absolute;
+      left:0; top:0; right:0; bottom:0;
+      width:100%; height:100%;
+      z-index:1;
+      background:#000;
+    }
+
+    /* 侧边播放列表：绝对定位覆盖在右侧，不影响播放器布局 */
     .playlist-panel{
       position:absolute;
       right:0;
-      width:224px; /* 宽度减少约 30% */
-      top:10%; /* 上下内缩 10% */
+      width:224px;               /* 比之前减少约 30% */
+      top:10%;                   /* 上下内缩 10% */
       bottom:10%;
       box-sizing:border-box;
       padding:12px 10px;
@@ -29,13 +66,19 @@
       -webkit-backdrop-filter: blur(8px);
       color:#fff;
       border-left:1px solid rgba(255,255,255,0.04);
-      transform: translateX(100%);
+      transform: translateX(100%); /* 初始隐藏（从右侧进入） */
       opacity:0;
       pointer-events:none;
       transition: transform 320ms cubic-bezier(.2,.9,.2,1), opacity 260ms ease;
-      z-index: 5;
+      z-index: 6;
     }
-    .playlist-panel.visible{ transform: translateX(0); opacity:1; pointer-events:auto; }
+
+    /* visible 时从右向左滑入 */
+    .playlist-panel.visible{
+      transform: translateX(0);
+      opacity:1;
+      pointer-events:auto;
+    }
 
     .playlist-header{font-size:14px;font-weight:600;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06)}
     .video-list{overflow:auto;padding-top:6px;flex:1}
@@ -54,35 +97,39 @@
     .video-item .title{color:inherit;flex:1}
     .empty{padding:14px;color:rgba(255,255,255,0.7);text-align:center}
 
-    /* 小屏适配 */
+    /* 小屏适配：列表覆盖在播放器上方右侧 */
     @media (max-width:900px){
-      #dplayer-container{height:56vh}
       .playlist-panel{width:86%;max-width:360px;right:12px;top:8%;bottom:8%}
     }
 
     .video-list::-webkit-scrollbar{width:8px}
     .video-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:6px}
 
-    /* 自定义 next 按钮样式（与 DPlayer 控件风格一致） */
+    /* Next 按钮样式（与 DPlayer 控件风格一致） */
     .dplayer-next-btn {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      width:36px;
-      height:36px;
-      margin-left:8px;
-      border-radius:4px;
-      background: rgba(0,0,0,0.35);
-      color:#fff;
-      cursor:pointer;
-      transition: background 160ms ease, transform 120ms ease;
-      border: none;
-      outline: none;
-    }
-    .dplayer-next-btn:hover { background: rgba(255,255,255,0.06); transform: translateY(-1px); }
-    .dplayer-next-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
-    /* 图标（简单三角与竖线） */
-    .dplayer-next-btn svg { width:18px; height:18px; fill:currentColor; }
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  box-sizing: border-box;
+  width: 36px;
+  height: 36px;
+  margin-left: 8px;
+  padding: 0;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+  cursor: pointer;
+  transition: background 160ms ease, transform 120ms ease;
+  border: none;
+  outline: none;
+  line-height: 1;
+  /* 不要把字体大小设为 0，会影响 icon font */
+  font-size: 16px;
+}
+.dplayer-next-btn:hover { background: rgba(255,255,255,0.06); transform: translateY(-1px); }
+.dplayer-next-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.dplayer-next-btn svg { width: 18px; height: 18px; fill: currentColor; display: block; }
   </style>
 </head>
 <body>
@@ -101,10 +148,11 @@
   <script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
 
   <script>
+    // 读取 query
     const params = new URLSearchParams(location.search);
     const playlistName = params.get('playlist') || '';
 
-    // DPlayer 初始化（初始不加载任何视频 URL，除非第一个）
+    // 初始化 DPlayer（初始不设置 url，除非第一个视频加载）
     const dp = new DPlayer({
       container: document.getElementById('dplayer-container'),
       video: { url: '' },
@@ -113,15 +161,17 @@
       lang: 'zh-cn'
     });
 
+    // 状态
     let videos = [];
     let currentIndex = -1;
     window._currentHls = null;
 
+    // DOM
     const playlistPanel = document.getElementById('playlistPanel');
     const videoListEl = document.getElementById('videoList');
     const dplayerContainer = document.getElementById('dplayer-container');
 
-    // 显示/隐藏控制（与之前逻辑一致）
+    // 显示/隐藏逻辑
     let hideTimer = null;
     const IDLE_HIDE_MS = 1000;
     let lastHiddenByIdle = false;
@@ -150,20 +200,23 @@
     }
 
     function isPointerOverElement(el) {
-      return el.matches(':hover');
+      return el && el.matches && el.matches(':hover');
     }
 
-    function getProgressElement() {
-      return dp.container.querySelector('.dplayer-bar-wrap') || dp.container.querySelector('.dplayer-bar') || null;
+    // 进度条元素（稍后查找）
+    let progressEl = null;
+    function findProgressElement() {
+      progressEl = dp.container.querySelector('.dplayer-bar-wrap') || dp.container.querySelector('.dplayer-bar') || null;
+      return progressEl;
     }
-    const progressEl = getProgressElement();
 
-    // 列表 hover 行为
+    // 列表 hover 行为：在列表上时保持显示，移出立即隐藏
     playlistPanel.addEventListener('mouseenter', () => { showPlaylist(); });
     playlistPanel.addEventListener('mouseleave', () => { hidePlaylistImmediate(false); });
 
     // 视频区域 hover 行为（含右侧 10% 再次唤起逻辑）
     let videoIdleTimer = null;
+
     function isEventOverElement(event, el) {
       if (!el) return false;
       const rect = el.getBoundingClientRect();
@@ -171,7 +224,8 @@
     }
 
     function onVideoMouseEnter(e) {
-      if (isEventOverElement(e, progressEl)) return;
+      // 如果在进度条上，不触发显示
+      if (progressEl && isEventOverElement(e, progressEl)) return;
       showPlaylist();
       if (videoIdleTimer) clearTimeout(videoIdleTimer);
       videoIdleTimer = setTimeout(() => {
@@ -182,7 +236,7 @@
     }
 
     function onVideoMouseMove(e) {
-      if (isEventOverElement(e, progressEl)) return;
+      if (progressEl && isEventOverElement(e, progressEl)) return;
 
       const rect = dplayerContainer.getBoundingClientRect();
       const relX = e.clientX - rect.left;
@@ -215,13 +269,12 @@
 
     // 点击播放器空白区域短暂显示（不在进度条上）
     dplayerContainer.addEventListener('click', (e) => {
-      if (isEventOverElement(e, progressEl)) return;
+      if (progressEl && isEventOverElement(e, progressEl)) return;
       showPlaylist();
       scheduleHideAfterIdle();
     });
 
-    // 仅为第一个视频在加载时请求签名并设置播放器，其余视频点击时再请求签名
-    // resolvePlayableUrl 只在需要播放时调用
+    // 网络与播放辅助
     async function fetchJson(url) {
       const res = await fetch(url);
       if (!res.ok) throw new Error(await res.text());
@@ -237,7 +290,7 @@
       return json.url;
     }
 
-    // 列表项：移除按钮，仅点击条目播放
+    // 列表项：无按钮，点击条目播放
     function createVideoItemEl(name, idx) {
       const el = document.createElement('div');
       el.className = 'video-item';
@@ -252,7 +305,7 @@
       return el;
     }
 
-    // 加载播放列表（不预加载除第一个外的视频）
+    // 加载播放列表（只为第一个视频请求签名并加载）
     async function loadVideosForPlaylist(playlist) {
       try {
         if (!playlist) {
@@ -272,7 +325,7 @@
           videoListEl.appendChild(el);
         });
 
-        // 只为第一个视频请求签名并加载到播放器（节约资源）
+        // 仅为第一个视频请求签名并加载（节约 R2）
         await loadAndPlayFirstIfNeeded();
       } catch (err) {
         console.error(err);
@@ -280,18 +333,15 @@
       }
     }
 
-    // 仅加载并播放第一个视频（如果存在）
     async function loadAndPlayFirstIfNeeded() {
       if (!videos || videos.length === 0) return;
-      // 播放第一个（会请求签名）
-      await playVideoByIndex(0, { preloadOnly: false });
-      // 更新 next 按钮状态
+      await playVideoByIndex(0);
       updateNextButtonState();
     }
 
-    // 播放指定索引；选项：preloadOnly（若 true 则只预加载，不自动 play）——我们不需要预fetch其他视频
-    async function playVideoByIndex(idx, opts = { preloadOnly: false }) {
-      if (idx === currentIndex && !opts.preloadOnly) return;
+    // 播放指定索引（点击时才请求签名）
+    async function playVideoByIndex(idx) {
+      if (idx === currentIndex) return;
       currentIndex = idx;
 
       document.querySelectorAll('.video-item').forEach(el => el.classList.remove('active'));
@@ -301,7 +351,6 @@
       const file = videos[idx].file;
       let playable;
       try {
-        // 只有在需要播放时才请求签名（节约资源）
         playable = await resolvePlayableUrl(file);
       } catch (e) {
         console.error(e);
@@ -310,24 +359,20 @@
       }
       if (!playable) { alert('播放地址为空'); return; }
 
-      // 切换 DPlayer 源并播放（或仅设置源）
       try {
         dp.switchVideo({ url: playable, type: 'auto' });
-        if (!opts.preloadOnly) {
-          // 尝试自动播放
-          const videoEl = dp.video && dp.video.video;
-          if (videoEl) videoEl.play().catch(()=>{});
-        }
+        const videoEl = dp.video && dp.video.video;
+        if (videoEl) videoEl.play().catch(()=>{});
       } catch (e) {
         const videoEl = dp.video && dp.video.video;
         if (videoEl) {
           videoEl.src = playable;
           videoEl.load();
-          if (!opts.preloadOnly) videoEl.play().catch(()=>{});
+          videoEl.play().catch(()=>{});
         }
       }
 
-      // HLS 处理（仅在播放时）
+      // HLS 处理
       if (playable.endsWith('.m3u8') && window.Hls && Hls.isSupported()) {
         if (window._currentHls) { try { window._currentHls.destroy(); } catch(e){} window._currentHls = null; }
         const videoEl = dp.video && dp.video.video;
@@ -343,27 +388,21 @@
       updateNextButtonState();
     }
 
-    // 添加“下一个”按钮到 DPlayer 控制条（放在播放按钮右侧）
+    // 注入“下一曲”按钮到 DPlayer 控制条（播放按钮右侧）
     function injectNextButton() {
-      // 等待控制条渲染
       const tryFind = () => {
         const controller = dp.container.querySelector('.dplayer-controller') || dp.container;
         if (!controller) return false;
 
-        // 找到播放按钮容器（.dplayer-play）
-        const playWrap = controller.querySelector('.dplayer-play') || controller.querySelector('.dplayer-icon');
-        // 如果找不到，尝试在 controller 的子元素中查找播放图标
-        const target = playWrap || controller.querySelector('.dplayer-play-icon') || controller;
-        if (!target) return false;
+        // 找到播放按钮容器
+        const playWrap = controller.querySelector('.dplayer-play') || controller.querySelector('.dplayer-play-icon') || null;
+        const insertTarget = playWrap && playWrap.parentNode ? playWrap.parentNode : controller;
 
-        // 创建 next 按钮
         if (controller.querySelector('.dplayer-next-btn')) return true; // 已注入
 
         const nextBtn = document.createElement('button');
         nextBtn.className = 'dplayer-next-btn';
         nextBtn.title = '下一曲';
-
-        // SVG 图标：双三角 + 竖线（常见“下一曲”图标）
         nextBtn.innerHTML = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6 6v12l8.5-6L6 6zM16 6h2v12h-2z"/></svg>';
 
         // 插入到播放按钮右侧（如果 playWrap 存在则插入其后）
@@ -373,23 +412,20 @@
           controller.appendChild(nextBtn);
         }
 
-        // 点击事件：播放下一条
         nextBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           playNext();
         });
 
-        // 存储引用以便更新状态
         dp._nextBtn = nextBtn;
         updateNextButtonState();
         return true;
       };
 
-      // 尝试多次直到找到控制条
       let attempts = 0;
       const interval = setInterval(() => {
         attempts++;
-        if (tryFind() || attempts > 20) clearInterval(interval);
+        if (tryFind() || attempts > 30) clearInterval(interval);
       }, 200);
     }
 
@@ -409,18 +445,28 @@
       if (next < videos.length) playVideoByIndex(next);
     }
 
-    // 初始化加载
+    // 初始化：查找 progress 元素并注入 next 按钮，加载列表
     (async () => {
+      // 注入 next 按钮（会轮询直到控制条渲染）
       injectNextButton();
+
+      // 轮询查找 progress 元素（用于避免在进度条 hover 时触发显示）
+      const progressInterval = setInterval(() => {
+        if (findProgressElement()) {
+          clearInterval(progressInterval);
+        }
+      }, 200);
+      // 加载播放列表（只预加载第一个）
       await loadVideosForPlaylist(playlistName);
 
+      // 当视频结束自动播放下一个
       dp.on && dp.on('ended', () => {
         const next = currentIndex + 1;
         if (next < videos.length) playVideoByIndex(next);
       });
 
-      // 当用户切换视频（通过点击列表或 next），确保 next 按钮状态更新
-      // 也在 playVideoByIndex 内更新
+      // 确保在窗口 resize 时仍能正确计算右侧 10% 区域
+      window.addEventListener('resize', () => { /* no-op, calculations use getBoundingClientRect on each event */ });
     })();
   </script>
 </body>
