@@ -34,37 +34,22 @@ import SearchNave from './components/SearchNav'
 import TagItemMiddle from './components/TagItemMiddle'
 import CONFIG from './config'
 import { Style } from './style'
+import IsolatedLayout from '@/components/IsolatedLayout'
 
-const AlgoliaSearchModal = dynamic(
-  () => import('@/components/AlgoliaSearchModal'),
-  { ssr: false }
-)
 
-// 主题全局状态
-const ThemeGlobalMatery = createContext()
-export const useMateryGlobal = () => useContext(ThemeGlobalMatery)
-
-/**
- * 基础布局
- * 采用左右两侧布局，移动端使用顶部导航栏
- * @param props
- * @returns {JSX.Element}
- * @constructor
- */
 const LayoutBase = props => {
   const { children, post } = props
   const { fullWidth } = useGlobal()
   const router = useRouter()
-  // 加载wow动画
-  useEffect(() => {
-    loadWowJS()
-  }, [])
+
+  // 这些必须在 isIsolated 判断之前
   const containerSlot =
     router.route === '/' ? (
       <Announcement {...props} />
     ) : (
       <BlogListBar {...props} />
     )
+
   const headerSlot =
     siteConfig('MATERY_HOME_BANNER_ENABLE', null, CONFIG) &&
     router.route === '/' ? (
@@ -73,9 +58,53 @@ const LayoutBase = props => {
       <PostHero {...props} />
     ) : null
 
-  const floatRightBottom = post ? <JumpToCommentButton /> : null
+  const isIsolated = post?.type === 'isolated'
 
-  // Algolia搜索框
+  useEffect(() => {
+    loadWowJS()
+  }, [])
+
+  // ⭐ isolated 独立页面布局（保留 PostHero + 半透明背景）
+  if (isIsolated) {
+    return (
+      <div
+        id='theme-matery'
+        className={`${siteConfig('FONT_STYLE')} min-h-screen flex flex-col justify-between w-full scroll-smooth`}>
+        <Style />
+
+        {/* PostHero */}
+        {headerSlot}
+
+        <main
+          id='wrapper'
+          className={`${siteConfig('MATERY_HOME_BANNER_ENABLE', null, CONFIG) ? '' : 'pt-16'} flex-1 w-full py-8 md:px-8 lg:px-24 relative`}>
+
+          {/* container-slot 外层（可留空） */}
+          <div
+            id='container-slot'
+            className={`w-full ${fullWidth ? '' : 'max-w-[1800px]'} ${post && ' lg:max-w-3xl 2xl:max-w-4xl '} mt-6 px-3 mx-auto lg:flex lg:space-x-4 justify-center relative z-10`}>
+          </div>
+
+          {/* 半透明背景 + 正文 */}
+          <div
+            id='container-inner'
+            className={`w-full min-h-fit ${fullWidth ? '' : 'max-w-[1800px]'} mx-auto lg:flex lg:space-x-4 justify-center relative z-10`}>
+            <div
+              id='inner-wrapper'
+              className={`w-full ${fullWidth ? '' : 'lg:max-w-3xl 2xl:max-w-4xl'}`}>
+              <div
+                className={`-mt-32 transition-all duration-300 rounded-md mx-3 lg:border lg:rounded-xl lg:py-4 bg-white dark:bg-black/30 backdrop-blur-md dark:border-white/10`}>
+                {children}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // ⭐ 非 isolated：原主题逻辑（保持不变）
+  const floatRightBottom = post ? <JumpToCommentButton /> : null
   const searchModal = useRef(null)
 
   return (
@@ -85,16 +114,13 @@ const LayoutBase = props => {
         className={`${siteConfig('FONT_STYLE')} min-h-screen flex flex-col justify-between w-full scroll-smooth`}>
         <Style />
 
-        {/* 顶部导航栏 */}
         <Header {...props} />
 
-        {/* 顶部嵌入 */}
         {headerSlot}
 
         <main
           id='wrapper'
           className={`${siteConfig('MATERY_HOME_BANNER_ENABLE', null, CONFIG) ? '' : 'pt-16'} flex-1 w-full py-8 md:px-8 lg:px-24 relative`}>
-          {/* 嵌入区域 */}
           <div
             id='container-slot'
             className={`w-full ${fullWidth ? '' : 'max-w-[1800px]'} ${post && ' lg:max-w-3xl 2xl:max-w-4xl '} mt-6 px-3 mx-auto lg:flex lg:space-x-4 justify-center relative z-10`}>
@@ -108,23 +134,21 @@ const LayoutBase = props => {
           </div>
         </main>
 
-        {/* 左下角悬浮 */}
         <div className='bottom-4 -left-14 fixed justify-end z-40'>
           <Live2D />
         </div>
 
-        {/* 右下角悬浮 */}
         <RightFloatButtons {...props} floatRightBottom={floatRightBottom} />
 
-        {/* 全文搜索 */}
         <AlgoliaSearchModal cRef={searchModal} {...props} />
 
-        {/* 页脚 */}
         <Footer title={siteConfig('TITLE')} />
       </div>
     </ThemeGlobalMatery.Provider>
   )
 }
+
+
 
 /**
  * 首页
@@ -226,6 +250,10 @@ const LayoutSlug = props => {
   const { fullWidth } = useGlobal()
   const router = useRouter()
   const waiting404 = siteConfig('POST_WAITING_TIME_FOR_404') * 1000
+    // ⭐ 关键：如果 Notion 里标记为 isolated，就走独立布局
+    if (post?.type === 'isolated') {
+      return <IsolatedLayout post={post} />
+    }  
   useEffect(() => {
     // 404
     if (!post) {
