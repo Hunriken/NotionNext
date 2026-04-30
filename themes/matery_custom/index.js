@@ -93,7 +93,8 @@ const LayoutBase = props => {
           className={`${siteConfig('FONT_STYLE')} min-h-screen w-full scroll-smooth`}>
           <Style />
   
-
+          {/* 保留 Hero 区 */}
+          {headerSlot}
   
           <main
             id='wrapper'
