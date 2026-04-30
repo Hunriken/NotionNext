@@ -57,16 +57,23 @@ const LayoutBase = props => {
   const { children, post } = props
   const { fullWidth } = useGlobal()
   const router = useRouter()
-  // 加载wow动画
+
+  // Algolia搜索框 ref 必须在任何条件判断前声明以保证 Hook 顺序
+  const searchModal = useRef(null)
+
+  // 加载wow动画（保留原逻辑）
   useEffect(() => {
     loadWowJS()
   }, [])
+
+  // 计算 headerSlot 与 containerSlot（这些不包含 Hook，安全在条件前计算）
   const containerSlot =
     router.route === '/' ? (
       <Announcement {...props} />
     ) : (
       <BlogListBar {...props} />
     )
+
   const headerSlot =
     siteConfig('MATERY_HOME_BANNER_ENABLE', null, CONFIG) &&
     router.route === '/' ? (
@@ -77,9 +84,40 @@ const LayoutBase = props => {
 
   const floatRightBottom = post ? <JumpToCommentButton /> : null
 
-  // Algolia搜索框
-  const searchModal = useRef(null)
+  // 如果是 isolated 类型文章：只渲染 Style + Hero（如果有） + IsolatedLayout（不渲染 Header/Footer）
+  if (post?.type === 'isolated') {
+    return (
+      <ThemeGlobalMatery.Provider value={{ searchModal }}>
+        <div
+          id='theme-matery'
+          className={`${siteConfig('FONT_STYLE')} min-h-screen w-full scroll-smooth`}>
+          <Style />
+  
+          {/* 保留 Hero 区 */}
+          {headerSlot}
+  
+          <main
+            id='wrapper'
+            className={`${siteConfig('MATERY_HOME_BANNER_ENABLE', null, CONFIG) ? '' : 'pt-16'} flex-1 w-full py-8 md:px-8 lg:px-24 relative`}>
+            <div
+              id='container-inner'
+              className={`w-full min-h-fit ${fullWidth ? '' : 'max-w-[1800px]'} mx-auto lg:flex lg:space-x-4 justify-center relative z-10`}>
+              
+              {/* 关键：恢复文章的模糊半透明背景 wrapper */}
+              <div className='-mt-16 transition-all duration-300 rounded-md mx-3 lg:border lg:rounded-xl lg:py-4 bg-white dark:bg-black/10 backdrop-blur-md dark:border-white/10'>
+                {/* 如果你希望复用 IsolatedLayout 的结构，直接渲染它 */}
+                <IsolatedLayout post={post} />
+              </div>
+  
+            </div>
+          </main>
+        </div>
+      </ThemeGlobalMatery.Provider>
+    )
+  }
+  
 
+  // 非 isolated 的原有布局（保留 Header/Footer 等）
   return (
     <ThemeGlobalMatery.Provider value={{ searchModal }}>
       <div
@@ -127,6 +165,7 @@ const LayoutBase = props => {
     </ThemeGlobalMatery.Provider>
   )
 }
+
 
 /**
  * 首页
